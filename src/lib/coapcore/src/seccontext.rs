@@ -166,9 +166,6 @@ impl<
     /// By default, this rejects all requests; access is allowed through builder calls such as
     /// [`.with_seccfg()()`][Self::with_seccfg()] or
     /// [`.allow_all()`][Self::allow_all()].
-    // FIXME: Apart from an own identity, this will also need a function to convert ID_CRED_I into
-    // a (CRED_I, Scope) pair; this is currently hardcoded in all the places that construct
-    // any scope
     pub fn new(
         own_identity: (&'a lakers::Credential, &'a lakers::BytesP256ElemLen),
         inner: H,
@@ -574,50 +571,11 @@ impl<
                 return Err(CoAPError::bad_request());
             }
 
-            let cred_i;
-            let authorization;
-
-            if id_cred_i.reference_only() {
-                match id_cred_i.as_encoded_value() {
-                    &[43] => {
-                        info!("Peer indicates use of the one preconfigured key");
-
-                        use hexlit::hex;
-                        const CRED_I: &[u8] = &hex!("A2027734322D35302D33312D46462D45462D33372D33322D333908A101A5010202412B2001215820AC75E9ECE3E50BFC8ED60399889522405C47BF16DF96660A41298CB4307F7EB62258206E5DE611388A4B8A8211334AC7D37ECB52A387D257E6DB3C2A93DF21FF3AFFC8");
-
-                        cred_i = lakers::Credential::parse_ccs(CRED_I)
-                            .expect("Static credential is not processable");
-
-                        // FIXME: learn from CRED_I
-                        authorization = self.authorities.the_one_known_authorization();
-                    }
-                    _ => {
-                        // FIXME: send better message
-                        return Err(CoAPError::bad_request());
-                    }
-                }
-            } else {
-                let ccs = id_cred_i
-                    .get_ccs()
-                    .expect("Lakers only knows IdCred as reference or as credential");
-                info!(
-                    "Got credential CCS by value: {:?}..",
-                    &ccs.bytes.get_slice(0, 5)
-                );
-
-                cred_i = lakers::Credential::parse_ccs(ccs.bytes.as_slice())
-                    // FIXME What kind of error do we send here?
-                    .map_err(|_| CoAPError::bad_request())?;
-
-                // FIXME: Do we want to continue at all? At least we don't allow
-                // stdout, but let's otherwise continue with the privileges of an
-                // unencrypted peer (allowing opportunistic encryption b/c we have
-                // enough slots to spare for some low-priority connections)
-                //
-                // The original_authorization may even have a hint (like, we might
-                // continue if it is not completely empty)
-                authorization = original_authorization;
-            }
+            let (cred_i, authorization) = self
+                .authorities
+                .expand_id_cred_x(id_cred_i)
+                // FIXME: send better message; how much variability should we allow?
+                .ok_or(CoAPError::bad_request())?;
 
             let (mut responder, _prk_out) =
                 responder.verify_message_3(cred_i).map_err(render_error)?;
@@ -650,7 +608,7 @@ impl<
 
             SecContextState {
                 protocol_stage: SecContextStage::Oscore(context),
-                authorization: authorization,
+                authorization: Some(authorization),
             }
         } else {
             // Return the state. Best bet is that it was already advanced to an OSCORE

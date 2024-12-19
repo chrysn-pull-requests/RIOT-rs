@@ -62,15 +62,17 @@ pub trait ServerSecurityConfig: crate::Sealed {
         Err(DecryptionError::NoKeyFound)
     }
 
-    /// Generates the scope representing unauthenticated access.
-    fn nosec_authorization(&self) -> Option<Self::Scope> {
+    /// Expands an EDHOC `ID_CRED_x` into a parsed `CRED_x` along with the associated
+    /// authorizations.
+    fn expand_id_cred_x(
+        &self,
+        id_cred_x: lakers::IdCred,
+    ) -> Option<(lakers::Credential, Self::Scope)> {
         None
     }
 
-    /// Generates the single scope expected by the `tests/coap` demo.
-    ///
-    /// FIXME: This should be replaced with configuration in that example.
-    fn the_one_known_authorization(&self) -> Option<Self::Scope> {
+    /// Generates the scope representing unauthenticated access.
+    fn nosec_authorization(&self) -> Option<Self::Scope> {
         None
     }
 
@@ -233,11 +235,22 @@ impl ServerSecurityConfig for AllowAll {
     }
 }
 
-/// A scope that provides a non-trivial implementation of
-/// [`ServerSecurityConfig::the_one_known_authorization()`], see there.
+/// A scope that recognize the `tests/coap` demo's credentials.
 ///
-/// FIXME: Like that function, this should be moved into the demo.
+/// FIXME: This should be moved into the demo or abstracted.
 pub struct GenerateArbitrary;
+
+impl GenerateArbitrary {
+    fn the_one_known_authorization(&self) -> Option<crate::scope::AifValue> {
+        use cbor_macro::cbor;
+        let slice: &[u8] = &cbor!([
+                ["/stdout", 17 / GET and FETCH /],
+                ["/.well-known/core", 1],
+                ["/poem", 1]
+        ]);
+        crate::scope::AifValue::try_from(slice).ok()
+    }
+}
 
 impl crate::Sealed for GenerateArbitrary {}
 
@@ -247,19 +260,46 @@ impl ServerSecurityConfig for GenerateArbitrary {
     type Scope = crate::scope::AifValue;
     type ScopeGenerator = NullGenerator<crate::scope::AifValue>;
 
+    fn expand_id_cred_x(
+        &self,
+        id_cred_x: lakers::IdCred,
+    ) -> Option<(lakers::Credential, Self::Scope)> {
+        use defmt_or_log::info;
+
+        if id_cred_x.reference_only() {
+            match id_cred_x.as_encoded_value() {
+                &[43] => {
+                    info!("Peer indicates use of the one preconfigured key");
+
+                    use hexlit::hex;
+                    const CRED_I: &[u8] = &hex!("A2027734322D35302D33312D46462D45462D33372D33322D333908A101A5010202412B2001215820AC75E9ECE3E50BFC8ED60399889522405C47BF16DF96660A41298CB4307F7EB62258206E5DE611388A4B8A8211334AC7D37ECB52A387D257E6DB3C2A93DF21FF3AFFC8");
+
+                    Some((
+                        lakers::Credential::parse_ccs(CRED_I)
+                            .expect("Static credential is not processable"),
+                        self.the_one_known_authorization()?,
+                    ))
+                }
+                _ => None,
+            }
+        } else {
+            let ccs = id_cred_x
+                .get_ccs()
+                .expect("Lakers only knows IdCred as reference or as credential");
+            info!(
+                "Got credential CCS by value: {:?}..",
+                &ccs.bytes.get_slice(0, 5)
+            );
+            Some((
+                lakers::Credential::parse_ccs(ccs.bytes.as_slice()).ok()?,
+                self.nosec_authorization()?,
+            ))
+        }
+    }
+
     fn nosec_authorization(&self) -> Option<Self::Scope> {
         use cbor_macro::cbor;
         let slice: &[u8] = &cbor!([["/.well-known/core", 1], ["/poem", 1]]);
-        crate::scope::AifValue::try_from(slice).ok()
-    }
-
-    fn the_one_known_authorization(&self) -> Option<Self::Scope> {
-        use cbor_macro::cbor;
-        let slice: &[u8] = &cbor!([
-                ["/stdout", 17 / GET and FETCH /],
-                ["/.well-known/core", 1],
-                ["/poem", 1]
-        ]);
         crate::scope::AifValue::try_from(slice).ok()
     }
 }
