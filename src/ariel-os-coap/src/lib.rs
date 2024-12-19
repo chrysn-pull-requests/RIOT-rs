@@ -33,9 +33,6 @@ static CLIENT: OnceLock<
 ///
 /// This can only be run once, as it sets up a system wide CoAP handler.
 pub async fn coap_run(handler: impl coap_handler::Handler + coap_handler::Reporting) -> ! {
-    use hexlit::hex;
-    const R: [u8; 32] = hex!("72cc4761dbd4c78f758931aa589d348d1ef874a7e303ede2f140dcf3e6aa4aac");
-
     static COAP: StaticCell<embedded_nal_coap::CoAPShared<CONCURRENT_REQUESTS>> = StaticCell::new();
 
     let stack = ariel_os_embassy::network::network_stack().await.unwrap();
@@ -63,16 +60,10 @@ pub async fn coap_run(handler: impl coap_handler::Handler + coap_handler::Report
         .await
         .unwrap();
 
-    let own_identity = (
-        &lakers::Credential::parse_ccs(&hex!("A2026008A101A5010202410A2001215820BBC34960526EA4D32E940CAD2A234148DDC21791A12AFBCBAC93622046DD44F02258204519E257236B2A0CE2023F0931F1F386CA7AFDA64FCDE0108C224C51EABF6072")).expect("Credential should be processable"),
-        &R,
-        );
-
     // FIXME: Should we allow users to override that? After all, this is just convenience and may
     // be limiting in special applications.
     let handler = handler.with_wkc();
     let mut handler = coapcore::OscoreEdhocHandler::new(
-        own_identity,
         handler,
         || lakers_crypto_rustcrypto::Crypto::new(ariel_os_random::crypto_rng()),
         ariel_os_random::crypto_rng(),

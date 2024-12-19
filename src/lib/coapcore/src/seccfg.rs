@@ -62,6 +62,10 @@ pub trait ServerSecurityConfig: crate::Sealed {
         Err(DecryptionError::NoKeyFound)
     }
 
+    fn own_edhoc_credential(&self) -> Option<(lakers::Credential, lakers::BytesP256ElemLen)> {
+        None
+    }
+
     /// Expands an EDHOC `ID_CRED_x` into a parsed `CRED_x` along with the associated
     /// authorizations.
     fn expand_id_cred_x(
@@ -259,6 +263,17 @@ impl ServerSecurityConfig for GenerateArbitrary {
 
     type Scope = crate::scope::AifValue;
     type ScopeGenerator = NullGenerator<crate::scope::AifValue>;
+
+    fn own_edhoc_credential(&self) -> Option<(lakers::Credential, lakers::BytesP256ElemLen)> {
+        use hexlit::hex;
+        const R: [u8; 32] =
+            hex!("72cc4761dbd4c78f758931aa589d348d1ef874a7e303ede2f140dcf3e6aa4aac");
+
+        Some((
+        lakers::Credential::parse_ccs(&hex!("A2026008A101A5010202410A2001215820BBC34960526EA4D32E940CAD2A234148DDC21791A12AFBCBAC93622046DD44F02258204519E257236B2A0CE2023F0931F1F386CA7AFDA64FCDE0108C224C51EABF6072")).expect("Credential should be processable"),
+        R,
+        ))
+    }
 
     fn expand_id_cred_x(
         &self,

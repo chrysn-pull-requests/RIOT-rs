@@ -123,7 +123,6 @@ impl<Crypto: lakers::Crypto, Authorization: Scope> SecContextState<Crypto, Autho
 /// added into the tree, the OSCORE part needs to wrap the inner handler anyway, and EDHOC and
 /// OSCORE are intertwined rather strongly in processing the EDHOC option.
 pub struct OscoreEdhocHandler<
-    'a,
     H: coap_handler::Handler,
     Crypto: lakers::Crypto,
     CryptoFactory: Fn() -> Crypto,
@@ -134,7 +133,6 @@ pub struct OscoreEdhocHandler<
     // locks for such sharing could still be acquired in a factory (at which point it may make
     // sense to make this a &mut).
     pool: SecContextPool<Crypto, SSC::Scope>,
-    own_identity: (&'a lakers::Credential, &'a lakers::BytesP256ElemLen),
 
     authorities: SSC,
 
@@ -154,12 +152,11 @@ pub struct OscoreEdhocHandler<
 }
 
 impl<
-        'a,
         H: coap_handler::Handler,
         Crypto: lakers::Crypto,
         CryptoFactory: Fn() -> Crypto,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<'a, H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG>
+    > OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG>
 {
     /// Creates a new CoAP server implementation (a [Handler][coap_handler::Handler]).
     ///
@@ -167,14 +164,12 @@ impl<
     /// [`.with_seccfg()()`][Self::with_seccfg()] or
     /// [`.allow_all()`][Self::allow_all()].
     pub fn new(
-        own_identity: (&'a lakers::Credential, &'a lakers::BytesP256ElemLen),
         inner: H,
         crypto_factory: CryptoFactory,
         rng: RNG,
-    ) -> OscoreEdhocHandler<'a, H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG> {
+    ) -> OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG> {
         Self {
             pool: Default::default(),
-            own_identity,
             inner,
             crypto_factory,
             authorities: crate::seccfg::DenyAll,
@@ -184,22 +179,20 @@ impl<
 }
 
 impl<
-        'a,
         H: coap_handler::Handler,
         Crypto: lakers::Crypto,
         CryptoFactory: Fn() -> Crypto,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<'a, H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG>
+    > OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG>
 {
     /// Alters the server's policy so that it accepts any request without any authentication.
     pub fn allow_all(
         self,
-    ) -> OscoreEdhocHandler<'a, H, Crypto, CryptoFactory, crate::seccfg::AllowAll, RNG> {
+    ) -> OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::AllowAll, RNG> {
         OscoreEdhocHandler {
             // Starting from DenyAll allows us to diregard any old connections as they couldn't do
             // anything
             pool: Default::default(),
-            own_identity: self.own_identity,
             authorities: crate::seccfg::AllowAll,
             inner: self.inner,
             crypto_factory: self.crypto_factory,
@@ -210,13 +203,11 @@ impl<
     /// Alters a server's policy so that behaves like coapcore has behaved in its sketch phase
     pub fn allow_arbitrary(
         self,
-    ) -> OscoreEdhocHandler<'a, H, Crypto, CryptoFactory, crate::seccfg::GenerateArbitrary, RNG>
-    {
+    ) -> OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::GenerateArbitrary, RNG> {
         OscoreEdhocHandler {
             // Starting from DenyAll allows us to diregard any old connections as they couldn't do
             // anything
             pool: Default::default(),
-            own_identity: self.own_identity,
             authorities: crate::seccfg::GenerateArbitrary,
             inner: self.inner,
             crypto_factory: self.crypto_factory,
@@ -226,13 +217,12 @@ impl<
 }
 
 impl<
-        'a,
         H: coap_handler::Handler,
         Crypto: lakers::Crypto,
         CryptoFactory: Fn() -> Crypto,
         SSC: ServerSecurityConfig,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<'a, H, Crypto, CryptoFactory, SSC, RNG>
+    > OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG>
 {
     /// Adds a new authorization server (or set thereof) to the handler, which is queried before
     /// any other authorization server.
@@ -241,7 +231,6 @@ impl<
         self,
         prepended_as: AS1,
     ) -> OscoreEdhocHandler<
-        'a,
         H,
         Crypto,
         CryptoFactory,
@@ -256,7 +245,6 @@ impl<
             authorities: crate::seccfg::AsChain::chain(prepended_as, self.authorities),
             // FIXME: This discards old connections rather than .into()'ing all their scopes.
             pool: Default::default(),
-            own_identity: self.own_identity,
             inner: self.inner,
             crypto_factory: self.crypto_factory,
             rng: self.rng,
@@ -291,6 +279,13 @@ impl<
         &mut self,
         request: &M,
     ) -> Result<OwnRequestData<Result<H::RequestData, H::ExtractRequestError>>, CoAPError> {
+        let own_identity = self
+            .authorities
+            .own_edhoc_credential()
+            // 4.04 Not Found does not precisely capture it when we later support reverse flow, but
+            // until then, "there is no EDHOC" is a good rendition of lack of own key.
+            .ok_or_else(CoAPError::not_found)?;
+
         let (first_byte, edhoc_m1) = request
             .payload()
             .split_first()
@@ -305,8 +300,8 @@ impl<
             let (responder, c_i, ead_1) = lakers::EdhocResponder::new(
                 (self.crypto_factory)(),
                 lakers::EDHOCMethod::StatStat,
-                *self.own_identity.1,
-                *self.own_identity.0,
+                own_identity.1,
+                own_identity.0,
             )
             .process_message_1(message_1)
             .map_err(render_error)?;
@@ -879,7 +874,7 @@ impl<
         CryptoFactory: Fn() -> Crypto,
         SSC: ServerSecurityConfig,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > coap_handler::Handler for OscoreEdhocHandler<'_, H, Crypto, CryptoFactory, SSC, RNG>
+    > coap_handler::Handler for OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG>
 {
     type RequestData = OrInner<
         OwnRequestData<Result<H::RequestData, H::ExtractRequestError>>,
