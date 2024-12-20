@@ -15,7 +15,7 @@ pub trait Scope: Sized + core::fmt::Debug + defmt::Format {
 }
 
 impl Scope for core::convert::Infallible {
-    fn request_is_allowed<M: ReadableMessage>(&self, request: &M) -> bool {
+    fn request_is_allowed<M: ReadableMessage>(&self, _request: &M) -> bool {
         match *self {}
     }
 }
@@ -36,7 +36,7 @@ pub trait ScopeGenerator: Sized {
 impl ScopeGenerator for core::convert::Infallible {
     type Scope = core::convert::Infallible;
 
-    fn from_token_scope(self, bytes: &[u8]) -> Result<Self::Scope, InvalidScope> {
+    fn from_token_scope(self, _bytes: &[u8]) -> Result<Self::Scope, InvalidScope> {
         match self {}
     }
 }
@@ -192,7 +192,7 @@ impl<S: Scope + From<AifValue>> ScopeGenerator for ParsingAif<S> {
             .array_iter::<(&str, u32)>()
             .map_err(|_| InvalidScope)?
         {
-            let (path, mask) = item.map_err(|_| InvalidScope)?;
+            let (path, _mask) = item.map_err(|_| InvalidScope)?;
             if !path.starts_with("/") {
                 return Err(InvalidScope);
             }

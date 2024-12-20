@@ -68,6 +68,10 @@ pub trait ServerSecurityConfig: crate::Sealed {
 
     /// Expands an EDHOC `ID_CRED_x` into a parsed `CRED_x` along with the associated
     /// authorizations.
+    #[allow(
+        unused_variables,
+        reason = "Names are human visible part of API description"
+    )]
     fn expand_id_cred_x(
         &self,
         id_cred_x: lakers::IdCred,
@@ -84,6 +88,10 @@ pub trait ServerSecurityConfig: crate::Sealed {
     ///
     /// The default (or any error) renderer produces a generic 4.01 Unauthorized in the handler;
     /// specifics can be useful in ACE scenarios to return a Request Creation Hint.
+    #[allow(
+        unused_variables,
+        reason = "Names are human visible part of API description"
+    )]
     fn render_not_allowed<M: coap_message::MutableWritableMessage>(
         &self,
         message: &mut M,
@@ -115,7 +123,7 @@ pub enum NullGenerator<Scope> {
 impl<Scope: crate::scope::Scope> crate::scope::ScopeGenerator for NullGenerator<Scope> {
     type Scope = Scope;
 
-    fn from_token_scope(self, bytes: &[u8]) -> Result<Self::Scope, crate::scope::InvalidScope> {
+    fn from_token_scope(self, _bytes: &[u8]) -> Result<Self::Scope, crate::scope::InvalidScope> {
         match self {
             NullGenerator::_Phantom(infallible, _) => match infallible {},
         }

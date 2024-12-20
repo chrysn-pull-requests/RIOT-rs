@@ -474,7 +474,7 @@ impl<
                     c_r,
                     c_i,
                 },
-            authorization: original_authorization, // So far, this is self.nosec_authorization()
+            .. // Discarding original authorization
         } = sec_context_state
         {
             #[allow(clippy::indexing_slicing, reason = "slice fits by construction")]
