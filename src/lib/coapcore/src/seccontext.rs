@@ -155,99 +155,22 @@ impl<
         H: coap_handler::Handler,
         Crypto: lakers::Crypto,
         CryptoFactory: Fn() -> Crypto,
+        SSC: ServerSecurityConfig,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG>
+    > OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG>
 {
     /// Creates a new CoAP server implementation (a [Handler][coap_handler::Handler]).
     ///
     /// By default, this rejects all requests; access is allowed through builder calls such as
     /// [`.with_seccfg()()`][Self::with_seccfg()] or
     /// [`.allow_all()`][Self::allow_all()].
-    pub fn new(
-        inner: H,
-        crypto_factory: CryptoFactory,
-        rng: RNG,
-    ) -> OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG> {
+    pub fn new(inner: H, authorities: SSC, crypto_factory: CryptoFactory, rng: RNG) -> Self {
         Self {
             pool: Default::default(),
             inner,
             crypto_factory,
-            authorities: crate::seccfg::DenyAll,
+            authorities,
             rng,
-        }
-    }
-}
-
-impl<
-        H: coap_handler::Handler,
-        Crypto: lakers::Crypto,
-        CryptoFactory: Fn() -> Crypto,
-        RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::DenyAll, RNG>
-{
-    /// Alters the server's policy so that it accepts any request without any authentication.
-    pub fn allow_all(
-        self,
-    ) -> OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::AllowAll, RNG> {
-        OscoreEdhocHandler {
-            // Starting from DenyAll allows us to diregard any old connections as they couldn't do
-            // anything
-            pool: Default::default(),
-            authorities: crate::seccfg::AllowAll,
-            inner: self.inner,
-            crypto_factory: self.crypto_factory,
-            rng: self.rng,
-        }
-    }
-
-    /// Alters a server's policy so that behaves like coapcore has behaved in its sketch phase
-    pub fn allow_arbitrary(
-        self,
-    ) -> OscoreEdhocHandler<H, Crypto, CryptoFactory, crate::seccfg::GenerateArbitrary, RNG> {
-        OscoreEdhocHandler {
-            // Starting from DenyAll allows us to diregard any old connections as they couldn't do
-            // anything
-            pool: Default::default(),
-            authorities: crate::seccfg::GenerateArbitrary,
-            inner: self.inner,
-            crypto_factory: self.crypto_factory,
-            rng: self.rng,
-        }
-    }
-}
-
-impl<
-        H: coap_handler::Handler,
-        Crypto: lakers::Crypto,
-        CryptoFactory: Fn() -> Crypto,
-        SSC: ServerSecurityConfig,
-        RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG>
-{
-    /// Adds a new authorization server (or set thereof) to the handler, which is queried before
-    /// any other authorization server.
-    // Ideally we wouldn't statically produce UnionScope but anything smaller depending on AS1/AS2
-    pub fn with_seccfg<AS1: ServerSecurityConfig>(
-        self,
-        prepended_as: AS1,
-    ) -> OscoreEdhocHandler<
-        H,
-        Crypto,
-        CryptoFactory,
-        crate::seccfg::AsChain<AS1, SSC, crate::scope::UnionScope>,
-        RNG,
-    >
-    where
-        crate::scope::UnionScope:
-            From<<AS1 as ServerSecurityConfig>::Scope> + From<<SSC as ServerSecurityConfig>::Scope>,
-    {
-        OscoreEdhocHandler {
-            authorities: crate::seccfg::AsChain::chain(prepended_as, self.authorities),
-            // FIXME: This discards old connections rather than .into()'ing all their scopes.
-            pool: Default::default(),
-            inner: self.inner,
-            crypto_factory: self.crypto_factory,
-            rng: self.rng,
         }
     }
 

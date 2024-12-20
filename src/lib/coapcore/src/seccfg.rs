@@ -92,107 +92,6 @@ pub trait ServerSecurityConfig: crate::Sealed {
     }
 }
 
-/// Type list of authorization servers. Any operation is first tried on the first item, then on the
-/// second.
-///
-/// It's convention to have a single A1 and then another chain in A2 or an [`DenyAll`], but that's
-/// mainly becuse that version is easiy to construct
-///
-/// In case of doubt, the head is used; in particular, it is only the head that gets to render the
-/// unauthorized response.
-pub struct AsChain<A1, A2, Scope> {
-    a1: A1,
-    a2: A2,
-    _phantom: core::marker::PhantomData<Scope>,
-}
-
-impl<A1, A2, Scope> AsChain<A1, A2, Scope> {
-    /// Creates a configuration that processes all operations through the `head`, and only if that
-    /// fails retries with the `tail`.
-    pub fn chain(head: A1, tail: A2) -> Self {
-        AsChain {
-            a1: head,
-            a2: tail,
-            _phantom: Default::default(),
-        }
-    }
-}
-
-/// An `Either` style type for encapsulating two [`ScopeGenerator`] implementations.
-///
-/// Other crates should not rely on this (but making it an enum wrapped in a struct for privacy is
-/// considered excessive at this point).
-#[doc(hidden)]
-pub enum EitherScopeGenerator<SG1, SG2, Scope> {
-    First(SG1),
-    Second(SG2),
-    Phantom(core::convert::Infallible, core::marker::PhantomData<Scope>),
-}
-
-impl<SG1, SG2, Scope> crate::scope::ScopeGenerator for EitherScopeGenerator<SG1, SG2, Scope>
-where
-    Scope: crate::scope::Scope,
-    SG1: crate::scope::ScopeGenerator,
-    SG2: crate::scope::ScopeGenerator,
-    SG1::Scope: Into<Scope>,
-    SG2::Scope: Into<Scope>,
-{
-    type Scope = Scope;
-
-    fn from_token_scope(self, bytes: &[u8]) -> Result<Self::Scope, crate::scope::InvalidScope> {
-        Ok(match self {
-            EitherScopeGenerator::First(gen) => gen.from_token_scope(bytes)?.into(),
-            EitherScopeGenerator::Second(gen) => gen.from_token_scope(bytes)?.into(),
-            EitherScopeGenerator::Phantom(infallible, _) => match infallible {},
-        })
-    }
-}
-
-impl<A1, A2, Scope> crate::Sealed for AsChain<A1, A2, Scope> {}
-
-impl<A1, A2, Scope> ServerSecurityConfig for AsChain<A1, A2, Scope>
-where
-    A1: ServerSecurityConfig,
-    A2: ServerSecurityConfig,
-    Scope: crate::scope::Scope,
-    A1::Scope: Into<Scope>,
-    A2::Scope: Into<Scope>,
-{
-    const PARSES_TOKENS: bool = A1::PARSES_TOKENS || A2::PARSES_TOKENS;
-
-    type Scope = Scope;
-    type ScopeGenerator = EitherScopeGenerator<A1::ScopeGenerator, A2::ScopeGenerator, Self::Scope>;
-
-    fn decrypt_symmetric_token<const N: usize>(
-        &self,
-        headers: &HeaderMap,
-        aad: &[u8],
-        ciphertext_buffer: &mut heapless::Vec<u8, N>,
-        _priv: crate::PrivateMethod,
-    ) -> Result<Self::ScopeGenerator, DecryptionError> {
-        if let Ok(sg) = self
-            .a1
-            .decrypt_symmetric_token(headers, aad, ciphertext_buffer, _priv)
-        {
-            return Ok(EitherScopeGenerator::First(sg));
-        }
-        match self
-            .a2
-            .decrypt_symmetric_token(headers, aad, ciphertext_buffer, _priv)
-        {
-            Ok(sg) => Ok(EitherScopeGenerator::Second(sg)),
-            Err(e) => Err(e),
-        }
-    }
-
-    fn render_not_allowed<M: coap_message::MutableWritableMessage>(
-        &self,
-        message: &mut M,
-    ) -> Result<(), ()> {
-        self.a1.render_not_allowed(message)
-    }
-}
-
 /// The default empty configuration that denies all access.
 pub struct DenyAll;
 
@@ -239,110 +138,26 @@ impl ServerSecurityConfig for AllowAll {
     }
 }
 
-/// A scope that recognize the `tests/coap` demo's credentials.
+/// An implementation of [`ServerSecurityConfig`] that can be extended using builder methods.
 ///
-/// FIXME: This should be moved into the demo or abstracted.
-pub struct GenerateArbitrary;
-
-impl GenerateArbitrary {
-    fn the_one_known_authorization(&self) -> Option<crate::scope::AifValue> {
-        use cbor_macro::cbor;
-        let slice: &[u8] = &cbor!([
-                ["/stdout", 17 / GET and FETCH /],
-                ["/.well-known/core", 1],
-                ["/poem", 1]
-        ]);
-        crate::scope::AifValue::try_from(slice).ok()
-    }
+/// This is very much in flux, and will need further exploration as to inhowmuch this can be
+/// type-composed from components.
+pub struct ConfigBuilder {
+    as_key_31: Option<[u8; 32]>,
+    unauthenticated_scope: Option<crate::scope::UnionScope>,
+    own_edhoc_credential: Option<(lakers::Credential, lakers::BytesP256ElemLen)>,
+    known_edhoc_clients: Option<(lakers::Credential, crate::scope::UnionScope)>,
+    request_creation_hints: &'static [u8],
 }
 
-impl crate::Sealed for GenerateArbitrary {}
+impl crate::Sealed for ConfigBuilder {}
 
-impl ServerSecurityConfig for GenerateArbitrary {
-    const PARSES_TOKENS: bool = false;
-
-    type Scope = crate::scope::AifValue;
-    type ScopeGenerator = NullGenerator<crate::scope::AifValue>;
-
-    fn own_edhoc_credential(&self) -> Option<(lakers::Credential, lakers::BytesP256ElemLen)> {
-        use hexlit::hex;
-        const R: [u8; 32] =
-            hex!("72cc4761dbd4c78f758931aa589d348d1ef874a7e303ede2f140dcf3e6aa4aac");
-
-        Some((
-        lakers::Credential::parse_ccs(&hex!("A2026008A101A5010202410A2001215820BBC34960526EA4D32E940CAD2A234148DDC21791A12AFBCBAC93622046DD44F02258204519E257236B2A0CE2023F0931F1F386CA7AFDA64FCDE0108C224C51EABF6072")).expect("Credential should be processable"),
-        R,
-        ))
-    }
-
-    fn expand_id_cred_x(
-        &self,
-        id_cred_x: lakers::IdCred,
-    ) -> Option<(lakers::Credential, Self::Scope)> {
-        use defmt_or_log::info;
-
-        if id_cred_x.reference_only() {
-            match id_cred_x.as_encoded_value() {
-                &[43] => {
-                    info!("Peer indicates use of the one preconfigured key");
-
-                    use hexlit::hex;
-                    const CRED_I: &[u8] = &hex!("A2027734322D35302D33312D46462D45462D33372D33322D333908A101A5010202412B2001215820AC75E9ECE3E50BFC8ED60399889522405C47BF16DF96660A41298CB4307F7EB62258206E5DE611388A4B8A8211334AC7D37ECB52A387D257E6DB3C2A93DF21FF3AFFC8");
-
-                    Some((
-                        lakers::Credential::parse_ccs(CRED_I)
-                            .expect("Static credential is not processable"),
-                        self.the_one_known_authorization()?,
-                    ))
-                }
-                _ => None,
-            }
-        } else {
-            let ccs = id_cred_x
-                .get_ccs()
-                .expect("Lakers only knows IdCred as reference or as credential");
-            info!(
-                "Got credential CCS by value: {:?}..",
-                &ccs.bytes.get_slice(0, 5)
-            );
-            Some((
-                lakers::Credential::parse_ccs(ccs.bytes.as_slice()).ok()?,
-                self.nosec_authorization()?,
-            ))
-        }
-    }
-
-    fn nosec_authorization(&self) -> Option<Self::Scope> {
-        use cbor_macro::cbor;
-        let slice: &[u8] = &cbor!([["/.well-known/core", 1], ["/poem", 1]]);
-        crate::scope::AifValue::try_from(slice).ok()
-    }
-}
-
-/// A test SSC association that does not need to deal with key IDs and just tries a single static
-/// key with a single algorithm, and parses the scope in there as AIF.
-///
-/// It sends a static response (empty slice is a fine default) on unauthorized responses.
-pub struct StaticSymmetric31 {
-    key: &'static [u8; 32],
-    unauthorized_response: &'static [u8],
-}
-
-impl StaticSymmetric31 {
-    pub fn new(key: &'static [u8; 32], unauthorized_response: &'static [u8]) -> Self {
-        Self {
-            key,
-            unauthorized_response,
-        }
-    }
-}
-impl crate::Sealed for StaticSymmetric31 {}
-
-impl ServerSecurityConfig for StaticSymmetric31 {
+impl ServerSecurityConfig for ConfigBuilder {
+    // We can't know at build time, assume yes
     const PARSES_TOKENS: bool = true;
 
-    type Scope = crate::scope::AifValue;
-    type ScopeGenerator = crate::scope::ParsingAif;
+    type Scope = crate::scope::UnionScope;
+    type ScopeGenerator = crate::scope::ParsingAif<crate::scope::UnionScope>;
 
     fn decrypt_symmetric_token<const N: usize>(
         &self,
@@ -354,12 +169,17 @@ impl ServerSecurityConfig for StaticSymmetric31 {
         use ccm::aead::AeadInPlace;
         use ccm::KeyInit;
 
+        let key = self.as_key_31.ok_or_else(|| {
+            defmt_or_log::error!("ConfigBuilder is not configured with a symmetric key.");
+            DecryptionError::NoKeyFound
+        })?;
+
         // FIXME: should be something Aes256Ccm::TagLength
         const TAG_SIZE: usize = 16;
         const NONCE_SIZE: usize = 13;
 
         pub type Aes256Ccm = ccm::Ccm<aes::Aes256, ccm::consts::U16, ccm::consts::U13>;
-        let cipher = Aes256Ccm::new(self.key.into());
+        let cipher = Aes256Ccm::new((&key).into());
 
         let nonce: &[u8; NONCE_SIZE] = headers
             .iv
@@ -395,6 +215,50 @@ impl ServerSecurityConfig for StaticSymmetric31 {
         Ok(crate::scope::ParsingAif::new())
     }
 
+    fn nosec_authorization(&self) -> Option<Self::Scope> {
+        self.unauthenticated_scope.clone()
+    }
+
+    fn own_edhoc_credential(&self) -> Option<(lakers::Credential, lakers::BytesP256ElemLen)> {
+        self.own_edhoc_credential
+    }
+
+    fn expand_id_cred_x(
+        &self,
+        id_cred_x: lakers::IdCred,
+    ) -> Option<(lakers::Credential, Self::Scope)> {
+        use defmt_or_log::{debug, info};
+
+        debug!("Evaluating peer's credenital {}", id_cred_x.as_full_value());
+
+        for (credential, scope) in &[self.known_edhoc_clients.as_ref()?] {
+            debug!("Comparing to {}", credential.bytes.as_slice());
+            if id_cred_x.reference_only() {
+                // ad Ok: If our credential has no KID, it can't be recognized in this branch
+                if credential.by_kid() == Ok(id_cred_x) {
+                    info!("Peer indicates use of the one preconfigured key");
+                    return Some((credential.clone(), scope.clone()));
+                }
+            } else {
+                // ad Ok: This is always the case for CCSs, but inapplicable eg. for PSKs.
+                if credential.by_value() == Ok(id_cred_x) {
+                    return Some((credential.clone(), scope.clone()));
+                }
+            }
+        }
+
+        debug!("Fell through");
+        if let Some(small_scope) = self.nosec_authorization() {
+            debug!("There is an unauthenticated scope");
+            if let Some(credential_by_value) = id_cred_x.get_ccs() {
+                debug!("and get_ccs worked");
+                return Some((credential_by_value.clone(), small_scope.clone()));
+            }
+        }
+
+        None
+    }
+
     fn render_not_allowed<M: coap_message::MutableWritableMessage>(
         &self,
         message: &mut M,
@@ -402,8 +266,123 @@ impl ServerSecurityConfig for StaticSymmetric31 {
         use coap_message::Code;
         message.set_code(M::Code::new(coap_numbers::code::UNAUTHORIZED).map_err(|_| ())?);
         message
-            .set_payload(self.unauthorized_response)
+            .set_payload(self.request_creation_hints)
             .map_err(|_| ())?;
         Ok(())
+    }
+}
+
+impl ConfigBuilder {
+    /// Creates an empty server security configuration.
+    ///
+    /// Without any additional building steps, this is equivalent to [`DenyAll`].
+    pub fn new() -> Self {
+        Self {
+            as_key_31: None,
+            unauthenticated_scope: None,
+            known_edhoc_clients: None,
+            own_edhoc_credential: None,
+            request_creation_hints: &[],
+        }
+    }
+
+    /// Sets a single Authorization Server recognized by a shared `AES-16-128-256` (COSE algorithm
+    /// 31) key.
+    ///
+    /// Scopes are accepted as given by the AS using the AIF REST model as understood by
+    /// [`crate::scope::AifValue`].
+    ///
+    /// # Caveats and evolution
+    ///
+    /// Currently, this type just supports a single AS; it should therefore only be called once,
+    /// and the latest value overwrites any earlier. Building these in type state (as `[(&as_key);
+    /// { N+1 }]` (once that is possible) or `(&as_key1, (&as_key2, ()))` will make sense on the
+    /// long run, but is not implemented yet.
+    ///
+    /// Depending on whether the keys are already referenced in a long-lived location, when
+    /// implementing that, it can also make sense to allow using any `AsRef<[u8; 32]>` types at
+    /// that point.
+    ///
+    /// Currently, keys are taken as byte sequence. With the expected flexibilization of crypto
+    /// backends, this may later allow a more generic type that reflects secure element key slots.
+    pub fn with_aif_symmetric_as_aesccm256(self, key: [u8; 32]) -> Self {
+        Self {
+            as_key_31: Some(key),
+            ..self
+        }
+    }
+
+    /// Allow use of the server within the limits of the given scope by EDHOC clients provided they
+    /// present the given credential.
+    ///
+    /// # Caveats and evolution
+    ///
+    /// Currently, this type just supports a single credential; it should therefore only be called
+    /// once, and the latest value overwrites any earlier. (See
+    /// [`Self::with_aif_symmetric_as_aesccm256`] for plans).
+    pub fn with_known_edhoc_credential(
+        self,
+        credential: lakers::Credential,
+        scope: crate::scope::UnionScope,
+    ) -> Self {
+        Self {
+            known_edhoc_clients: Some((credential, scope)),
+            ..self
+        }
+    }
+
+    /// Configures an EDHOC credential and private key to be presented by this server.
+    ///
+    /// # Panics
+    ///
+    /// When debug assertions are enabled, this panics if an own credential has already been
+    /// configured.
+    pub fn with_own_edhoc_credential(
+        self,
+        credential: lakers::Credential,
+        key: lakers::BytesP256ElemLen,
+    ) -> Self {
+        debug_assert!(
+            self.own_edhoc_credential.is_none(),
+            "Overwriting previously configured own credential scope"
+        );
+        Self {
+            own_edhoc_credential: Some((credential, key)),
+            ..self
+        }
+    }
+
+    /// Allow use of the server by unauthenticated clients using the given scope.
+    ///
+    /// # Panics
+    ///
+    /// When debug assertions are enabled, this panics if an unauthenticated scope has already been
+    /// configured.
+    pub fn allow_unauthenticated(self, scope: crate::scope::UnionScope) -> Self {
+        debug_assert!(
+            self.unauthenticated_scope.is_none(),
+            "Overwriting previously configured unauthenticated scope"
+        );
+        Self {
+            unauthenticated_scope: Some(scope),
+            ..self
+        }
+    }
+
+    /// Sets the payload of the "Unauthorized" response.
+    ///
+    /// # Panics
+    ///
+    /// When debug assertions are enabled, this panics if an unauthenticated scope has already been
+    /// configured.
+    pub fn with_request_creation_hints(self, request_creation_hints: &'static [u8]) -> Self {
+        debug_assert!(
+            self.request_creation_hints == [],
+            "Overwriting previously configured unauthenticated scope"
+        );
+        Self {
+            request_creation_hints,
+            ..self
+        }
     }
 }

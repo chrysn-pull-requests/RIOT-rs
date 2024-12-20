@@ -25,7 +25,6 @@ arrayvec = { version = "0.7.4", default-features = false }
 coap-message-implementations = { version = "0.1.2", features = ["downcast"] }
 coap-message-utils = "0.3.3"
 coap-numbers = "0.2.3"
-hexlit = "0.5.5"
 lakers-crypto-rustcrypto = "0.7.2"
 liboscore = "0.2.2"
 liboscore-msgbackend = "0.2.2"
@@ -44,8 +43,6 @@ document-features = "0.2.10"
 # dependencies.
 ccm = { version = "0.5.0", default-features = false }
 aes = { version = "0.8.4", default-features = false }
-cbor-macro = "0.1.0"
-cboritem = "0.1.2"
 
 [features]
 #! Cargo features

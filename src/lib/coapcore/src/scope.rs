@@ -85,7 +85,7 @@ const AIF_SCOPE_MAX_LEN: usize = 64;
 ///
 /// This completely disregards proper URI splitting; this works for very simple URI references in
 /// the AIF. This could be mitigated by switching to a CRI based model.
-#[derive(Debug, defmt::Format)]
+#[derive(Debug, defmt::Format, Clone)]
 pub struct AifValue([u8; AIF_SCOPE_MAX_LEN]);
 
 impl TryFrom<&[u8]> for AifValue {
@@ -209,7 +209,7 @@ impl<S: Scope + From<AifValue>> ScopeGenerator for ParsingAif<S> {
 /// This is useful when combining multiple authentication methods, eg. allowing ACE tokens (that
 /// need an [`AifValue`] to express their arbitrary scopes) as well as a configured admin key (that
 /// has "all" permission, which are not expressible in an [`AifValue`].
-#[derive(Debug, defmt::Format)]
+#[derive(Debug, defmt::Format, Clone)]
 pub enum UnionScope {
     AifValue(AifValue),
     AllowAll,
