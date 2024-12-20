@@ -163,10 +163,20 @@ impl Scope for AifValue {
 }
 
 /// A scope generator that parses the scope's bytes as AIF, accepting any value within that model.
-pub struct ParsingAif;
+pub struct ParsingAif<S = AifValue> {
+    _phantom: core::marker::PhantomData<S>,
+}
 
-impl ScopeGenerator for ParsingAif {
-    type Scope = AifValue;
+impl<S> ParsingAif<S> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<S: Scope + From<AifValue>> ScopeGenerator for ParsingAif<S> {
+    type Scope = S;
 
     fn from_token_scope(self, bytes: &[u8]) -> Result<Self::Scope, InvalidScope> {
         let mut buffer = [0; AIF_SCOPE_MAX_LEN];
@@ -188,7 +198,7 @@ impl ScopeGenerator for ParsingAif {
             }
         }
 
-        Ok(AifValue(buffer))
+        Ok(AifValue(buffer).into())
     }
 }
 
