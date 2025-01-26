@@ -11,6 +11,7 @@ use defmt_or_log::trace;
 use crate::error::{CredentialError, CredentialErrorDetail};
 
 use crate::helpers::COwn;
+use crate::time::TimeConstraint;
 
 /// Fixed length of the ACE OSCORE nonce issued by this module.
 pub const OWN_NONCE_LEN: usize = 8;
@@ -211,9 +212,9 @@ pub struct CwtClaimsSet<'a> {
     #[n(3)]
     pub(crate) aud: Option<&'a str>,
     #[n(4)]
-    exp: u64,
+    pub(crate) exp: u64,
     #[n(6)]
-    iat: u64,
+    pub(crate) iat: u64,
     #[b(8)]
     cnf: Cnf<'a>,
     #[cbor(b(9), with = "minicbor::bytes")]
@@ -379,7 +380,15 @@ pub fn process_acecbor_authz_info<Scope>(
     authorities: &impl crate::seccfg::ServerSecurityConfig<Scope = Scope>,
     nonce2: [u8; OWN_NONCE_LEN],
     server_recipient_id: impl FnOnce(&[u8]) -> COwn,
-) -> Result<(AceCborAuthzInfoResponse, Scope, liboscore::PrimitiveContext), CredentialError> {
+) -> Result<
+    (
+        AceCborAuthzInfoResponse,
+        Scope,
+        crate::time::TimeConstraint,
+        liboscore::PrimitiveContext,
+    ),
+    CredentialError,
+> {
     trace!("Processing authz_info {=[u8]:02x}", payload); // :02x could be :cbor
 
     let decoded: UnprotectedAuthzInfoPost = minicbor::decode(payload)?;
@@ -424,6 +433,8 @@ pub fn process_acecbor_authz_info<Scope>(
     // <https://codeberg.org/chrysn/minicbor-adapters/pulls/1>
     // trace!("Decrypted CWT claims: {}", claims);
 
+    let time_constraint = TimeConstraint::from_claims_set(&claims);
+
     let Cnf {
         osc: Some(osc),
         cose_key: None,
@@ -446,13 +457,13 @@ pub fn process_acecbor_authz_info<Scope>(
         ace_server_recipientid,
     };
 
-    Ok((response, scope, derived))
+    Ok((response, scope, time_constraint, derived))
 }
 
 pub fn process_edhoc_token<Scope>(
     ead3: &[u8],
     authorities: &impl crate::seccfg::ServerSecurityConfig<Scope = Scope>,
-) -> Result<(lakers::Credential, Scope), CredentialError> {
+) -> Result<(lakers::Credential, Scope, TimeConstraint), CredentialError> {
     let mut buffer = heapless::Vec::<u8, MAX_SUPPORTED_ACCESSTOKEN_LEN>::new();
 
     // Trying and falling back means that the minicbor error is not too great ("Expected tag 16"
@@ -510,7 +521,7 @@ pub fn process_edhoc_token<Scope>(
         return Err(CredentialErrorDetail::UnsupportedExtension.into());
     };
 
-    // FIXME: Check iat/exp against raytime
+    let time_constraint = crate::time::TimeConstraint::from_claims_set(&claims);
 
     let Cnf {
         osc: None,
@@ -538,5 +549,5 @@ pub fn process_edhoc_token<Scope>(
             .map_err(|_| CredentialErrorDetail::InconsistentDetails)?,
     );
 
-    Ok((credential, scope))
+    Ok((credential, scope, time_constraint))
 }

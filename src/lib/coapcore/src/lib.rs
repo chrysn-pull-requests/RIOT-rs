@@ -34,6 +34,8 @@ mod iana;
 
 mod helpers;
 
+pub mod time;
+
 mod ace;
 pub mod scope;
 pub mod seccfg;

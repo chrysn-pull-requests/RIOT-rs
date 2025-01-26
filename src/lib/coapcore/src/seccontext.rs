@@ -11,6 +11,8 @@ use crate::helpers::COwn;
 use crate::scope::Scope;
 use crate::seccfg::ServerSecurityConfig;
 
+use crate::time::{TimeConstraint, TimeProvider};
+
 const MAX_CONTEXTS: usize = 4;
 const _MAX_CONTEXTS_CHECK: () = assert!(MAX_CONTEXTS <= COwn::GENERATABLE_VALUES);
 
@@ -27,6 +29,7 @@ struct SecContextState<Crypto: lakers::Crypto, Authorization: Scope> {
 
     // This is Some(...) unless the stage is unusable.
     authorization: Option<Authorization>,
+    time_constraint: TimeConstraint,
     protocol_stage: SecContextStage<Crypto>,
 }
 
@@ -37,6 +40,7 @@ impl<Crypto: lakers::Crypto, Authorization: Scope> Default
         Self {
             authorization: None,
             protocol_stage: SecContextStage::Empty,
+            time_constraint: TimeConstraint::unbounded(),
         }
     }
 }
@@ -75,6 +79,7 @@ const LEVEL_ADMIN: usize = 0;
 const LEVEL_AUTHENTICATED: usize = 1;
 const LEVEL_ONGOING: usize = 2;
 const LEVEL_EMPTY: usize = 3;
+// FIXME introduce a level for expired states; they're probably the least priority.
 const LEVEL_COUNT: usize = 4;
 
 impl<Crypto: lakers::Crypto, Authorization: Scope> crate::oluru::PriorityLevel
@@ -128,6 +133,7 @@ pub struct OscoreEdhocHandler<
     CryptoFactory: Fn() -> Crypto,
     SSC: ServerSecurityConfig,
     RNG: rand_core::RngCore + rand_core::CryptoRng,
+    TP: TimeProvider,
 > {
     // It'd be tempted to have sharing among multiple handlers for multiple CoAP stacks, but
     // locks for such sharing could still be acquired in a factory (at which point it may make
@@ -147,6 +153,8 @@ pub struct OscoreEdhocHandler<
     // called, or an AuthorizationChecked::Allowed is around.
     inner: H,
 
+    time: TP,
+
     crypto_factory: CryptoFactory,
     rng: RNG,
 }
@@ -157,16 +165,28 @@ impl<
         CryptoFactory: Fn() -> Crypto,
         SSC: ServerSecurityConfig,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG>
+        TP: TimeProvider,
+    > OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG, TP>
 {
     /// Creates a new CoAP server implementation (a [Handler][coap_handler::Handler]).
-    pub fn new(inner: H, authorities: SSC, crypto_factory: CryptoFactory, rng: RNG) -> Self {
+    ///
+    /// The time provider is used to evaluate any time limited tokens leniently; choosing a "bad"
+    /// time source here (in particular [`crate::time::TimeUnknown`] leads to acceptance of expired
+    /// tokens.
+    pub fn new(
+        inner: H,
+        authorities: SSC,
+        crypto_factory: CryptoFactory,
+        rng: RNG,
+        time: TP,
+    ) -> Self {
         Self {
             pool: Default::default(),
             inner,
             crypto_factory,
             authorities,
             rng,
+            time,
         }
     }
 
@@ -240,6 +260,7 @@ impl<
                     responder,
                 },
                 authorization: self.authorities.nosec_authorization(),
+                time_constraint: TimeConstraint::unbounded(),
             });
 
             Ok(OwnRequestData::EdhocOkSend2(c_r))
@@ -276,6 +297,7 @@ impl<
                             responder: taken,
                         },
                     authorization,
+                    time_constraint,
                 } = taken
                 else {
                     todo!();
@@ -303,6 +325,7 @@ impl<
                         c_r,
                     },
                     authorization,
+                    time_constraint,
                 };
                 message_2
             },
@@ -370,6 +393,7 @@ impl<
         let SecContextState {
             protocol_stage: SecContextStage::Oscore(mut oscore_context),
             authorization,
+            time_constraint,
         } = taken
         else {
             // FIXME: How'd we even get there? Should this be unreachable?
@@ -378,6 +402,19 @@ impl<
             error!("Found empty security context.");
             return Err(CoAPError::bad_request());
         };
+
+        if !time_constraint.is_valid_with(&mut self.time) {
+            // Token expired.
+            //
+            // By returning early after having taken the context, we discard it completely.
+            //
+            // FIXME: Find out whether there is any merit in retaining the security context without
+            // authorization at all -- it may be that for the purpose of time series it is useful
+            // to retain the authorization (if there is some kind of renewal tokens / token
+            // series).
+            debug!("Discarding expired context");
+            return Err(CoAPError::bad_request());
+        }
 
         // Until liboscore can work on an arbitrary message, in particular a
         // `StrippingTheEdhocOptionAndPayloadPart<M>`, we have to create a copy.
@@ -439,6 +476,7 @@ impl<
         let _evicted = self.pool.force_insert(SecContextState {
             protocol_stage: SecContextStage::Oscore(oscore_context),
             authorization,
+            time_constraint,
         });
         debug_assert!(matches!(_evicted, Some(SecContextState { protocol_stage: SecContextStage::Empty, .. }) | None), "A Default (Empty) was placed when an item was taken, which should have the lowest priority");
 
@@ -492,24 +530,24 @@ impl<
             let (responder, id_cred_i, mut ead_3) =
                 responder.parse_message_3(&msg_3).map_err(render_error)?;
 
-            let mut cred_i_and_authorization = None;
+            let mut cred_i_and_authorization_and_timeconstraint = None;
 
             if let Some(lakers::EADItem { label: crate::iana::edhoc_ead::ACETOKEN, value: Some(value), .. }) = ead_3.take() {
                 match crate::ace::process_edhoc_token(value.as_slice(), &self.authorities) {
-                    Ok(ci_and_a) => cred_i_and_authorization = Some(ci_and_a),
+                    Ok(ci_and_a) => cred_i_and_authorization_and_timeconstraint = Some(ci_and_a),
                     Err(e) => {
                         error!("Received unprocessable token {=[u8]:02x}, error: {}", value.as_slice(), Debug2Format(&e)); // :02x could be :cbor
                     }
                 }
             }
 
-            if cred_i_and_authorization.is_none() {
-                cred_i_and_authorization = self
+            if cred_i_and_authorization_and_timeconstraint.is_none() {
+                cred_i_and_authorization_and_timeconstraint = self
                     .authorities
                     .expand_id_cred_x(id_cred_i);
             }
 
-            let Some((cred_i, authorization)) = cred_i_and_authorization else {
+            let Some((cred_i, authorization, time_constraint)) = cred_i_and_authorization_and_timeconstraint else {
                 // FIXME: send better message; how much variability should we allow?
                 error!("Peer's ID_CRED_I could not be resolved into CRED_I.");
                 return Err(CoAPError::bad_request());
@@ -559,6 +597,7 @@ impl<
             SecContextState {
                 protocol_stage: SecContextStage::Oscore(context),
                 authorization: Some(authorization),
+                time_constraint,
             }
         } else {
             // Return the state. Best bet is that it was already advanced to an OSCORE
@@ -704,7 +743,7 @@ impl<
         let mut nonce2 = [0; crate::ace::OWN_NONCE_LEN];
         self.rng.fill_bytes(&mut nonce2);
 
-        let (response, scope, oscore) =
+        let (response, scope, time_constraint, oscore) =
             crate::ace::process_acecbor_authz_info(payload, &self.authorities, nonce2, |nonce1| {
                 // This preferably (even exclusively) produces EDHOC-ideal recipient IDs, but as long
                 // as we're having more of those than slots, no point in not reusing the code.
@@ -725,6 +764,7 @@ impl<
         let _evicted = self.pool.force_insert(SecContextState {
             protocol_stage: SecContextStage::Oscore(oscore),
             authorization: Some(scope),
+            time_constraint,
         });
 
         Ok(response)
@@ -860,7 +900,8 @@ impl<
         CryptoFactory: Fn() -> Crypto,
         SSC: ServerSecurityConfig,
         RNG: rand_core::RngCore + rand_core::CryptoRng,
-    > coap_handler::Handler for OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG>
+        TP: TimeProvider,
+    > coap_handler::Handler for OscoreEdhocHandler<H, Crypto, CryptoFactory, SSC, RNG, TP>
 {
     type RequestData = OrInner<
         OwnRequestData<Result<H::RequestData, H::ExtractRequestError>>,

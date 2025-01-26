@@ -5,6 +5,7 @@ use defmt_or_log::{debug, error, trace};
 
 use crate::ace::HeaderMap;
 use crate::error::{CredentialError, CredentialErrorDetail};
+use crate::time::TimeConstraint;
 
 pub const MAX_AUD_SIZE: usize = 8;
 
@@ -98,6 +99,10 @@ pub trait ServerSecurityConfig: crate::Sealed {
 
     /// Expands an EDHOC `ID_CRED_x` into a parsed `CRED_x` along with the associated
     /// authorizations.
+    ///
+    /// This is currently used for statically configured known static keys, might also be used in
+    /// situations when a new EDHOC session is run with a credential previously stored, for example
+    /// after an ACE token was submitted.
     #[allow(
         unused_variables,
         reason = "Names are human visible part of API description"
@@ -105,7 +110,7 @@ pub trait ServerSecurityConfig: crate::Sealed {
     fn expand_id_cred_x(
         &self,
         id_cred_x: lakers::IdCred,
-    ) -> Option<(lakers::Credential, Self::Scope)> {
+    ) -> Option<(lakers::Credential, Self::Scope, TimeConstraint)> {
         None
     }
 
@@ -296,7 +301,7 @@ impl ServerSecurityConfig for ConfigBuilder {
     fn expand_id_cred_x(
         &self,
         id_cred_x: lakers::IdCred,
-    ) -> Option<(lakers::Credential, Self::Scope)> {
+    ) -> Option<(lakers::Credential, Self::Scope, TimeConstraint)> {
         trace!(
             "Evaluating peer's credential {=[u8]:02x}", // :02x could be :cbor
             id_cred_x.as_full_value()
@@ -316,7 +321,11 @@ impl ServerSecurityConfig for ConfigBuilder {
                         clippy::clone_on_copy,
                         reason = "Lakers items are overly copy happy"
                     )]
-                    return Some((credential.clone(), scope.clone()));
+                    return Some((
+                        credential.clone(),
+                        scope.clone(),
+                        TimeConstraint::unbounded(),
+                    ));
                 }
             } else {
                 // ad Ok: This is always the case for CCSs, but inapplicable eg. for PSKs.
@@ -326,7 +335,11 @@ impl ServerSecurityConfig for ConfigBuilder {
                         clippy::clone_on_copy,
                         reason = "Lakers items are overly copy happy"
                     )]
-                    return Some((credential.clone(), scope.clone()));
+                    return Some((
+                        credential.clone(),
+                        scope.clone(),
+                        TimeConstraint::unbounded(),
+                    ));
                 }
             }
         }
@@ -336,7 +349,11 @@ impl ServerSecurityConfig for ConfigBuilder {
             if let Some(credential_by_value) = id_cred_x.get_ccs() {
                 debug!("The unauthorized client provided a usable credential by value.");
                 #[expect(clippy::clone_on_copy, reason = "Lakers items are overly copy happy")]
-                return Some((credential_by_value.clone(), small_scope.clone()));
+                return Some((
+                    credential_by_value.clone(),
+                    small_scope.clone(),
+                    TimeConstraint::unbounded(),
+                ));
             }
         }
 
@@ -436,6 +453,8 @@ impl ConfigBuilder {
 
     /// Allow use of the server within the limits of the given scope by EDHOC clients provided they
     /// present the given credential.
+    ///
+    /// Unlike many ACE tokens, this credential is accepted without any limitations on time.
     ///
     /// # Caveats and evolution
     ///
