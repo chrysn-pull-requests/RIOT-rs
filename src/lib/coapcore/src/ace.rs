@@ -383,9 +383,9 @@ pub fn process_acecbor_authz_info<Scope>(
 ) -> Result<
     (
         AceCborAuthzInfoResponse,
+        liboscore::PrimitiveContext,
         Scope,
         crate::time::TimeConstraint,
-        liboscore::PrimitiveContext,
     ),
     CredentialError,
 > {
@@ -457,7 +457,7 @@ pub fn process_acecbor_authz_info<Scope>(
         ace_server_recipientid,
     };
 
-    Ok((response, scope, time_constraint, derived))
+    Ok((response, derived, scope, time_constraint))
 }
 
 pub fn process_edhoc_token<Scope>(

@@ -743,7 +743,7 @@ impl<
         let mut nonce2 = [0; crate::ace::OWN_NONCE_LEN];
         self.rng.fill_bytes(&mut nonce2);
 
-        let (response, scope, time_constraint, oscore) =
+        let (response, oscore, scope, time_constraint) =
             crate::ace::process_acecbor_authz_info(payload, &self.authorities, nonce2, |nonce1| {
                 // This preferably (even exclusively) produces EDHOC-ideal recipient IDs, but as long
                 // as we're having more of those than slots, no point in not reusing the code.
