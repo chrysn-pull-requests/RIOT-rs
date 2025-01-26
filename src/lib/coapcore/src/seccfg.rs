@@ -7,7 +7,7 @@ use crate::ace::HeaderMap;
 use crate::error::{CredentialError, CredentialErrorDetail};
 use crate::time::TimeConstraint;
 
-pub const MAX_AUD_SIZE: usize = 8;
+pub(crate) const MAX_AUD_SIZE: usize = 8;
 
 /// Error type of [`ServerSecurityConfig::render_not_allowed`].
 ///

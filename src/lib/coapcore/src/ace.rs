@@ -14,7 +14,7 @@ use crate::helpers::COwn;
 use crate::time::TimeConstraint;
 
 /// Fixed length of the ACE OSCORE nonce issued by this module.
-pub const OWN_NONCE_LEN: usize = 8;
+pub(crate) const OWN_NONCE_LEN: usize = 8;
 
 /// Size allocated for the ACE OSCORE nonces chosen by the peers.
 const MAX_SUPPORTED_PEER_NONCE_LEN: usize = 16;
@@ -65,9 +65,9 @@ type UnprotectedAuthzInfoPost<'a> = AceCbor<'a>;
 pub struct HeaderMap<'a> {
     #[n(1)]
     // Might be extended as more exotic algorithms are supported
-    pub alg: Option<i32>,
+    pub(crate) alg: Option<i32>,
     #[cbor(b(5), with = "minicbor::bytes")]
-    pub iv: Option<&'a [u8]>,
+    pub(crate) iv: Option<&'a [u8]>,
 }
 
 impl HeaderMap<'_> {
@@ -95,20 +95,20 @@ impl HeaderMap<'_> {
 )]
 #[cbor(map)]
 #[non_exhaustive]
-pub struct CoseKey<'a> {
+pub(crate) struct CoseKey<'a> {
     #[n(1)]
-    pub kty: i32, // or tstr (unsupported here so far)
+    pub(crate) kty: i32, // or tstr (unsupported here so far)
     #[cbor(b(2), with = "minicbor::bytes")]
-    pub kid: Option<&'a [u8]>,
+    pub(crate) kid: Option<&'a [u8]>,
     #[n(3)]
-    pub alg: Option<i32>, // or tstr (unsupported here so far)
+    pub(crate) alg: Option<i32>, // or tstr (unsupported here so far)
 
     #[n(-1)]
-    pub crv: Option<i32>, // or tstr (unsupported here so far)
+    pub(crate) crv: Option<i32>, // or tstr (unsupported here so far)
     #[cbor(b(-2), with = "minicbor::bytes")]
-    pub x: Option<&'a [u8]>,
+    pub(crate) x: Option<&'a [u8]>,
     #[cbor(b(-3), with = "minicbor::bytes")]
-    pub y: Option<&'a [u8]>, // or bool (unsupported here so far)
+    pub(crate) y: Option<&'a [u8]>, // or bool (unsupported here so far)
 }
 
 /// A COSE_Encrypt0 structure as defined in [RFC8152](https://www.rfc-editor.org/rfc/rfc8152)
@@ -324,7 +324,7 @@ pub struct AceCborAuthzInfoResponse {
 }
 
 impl AceCborAuthzInfoResponse {
-    pub fn render<M: coap_message::MutableWritableMessage>(
+    pub(crate) fn render<M: coap_message::MutableWritableMessage>(
         &self,
         message: &mut M,
     ) -> Result<(), M::UnionError> {
@@ -375,7 +375,7 @@ impl AceCborAuthzInfoResponse {
 /// * Instead of the random nonce2, it would be preferable to pass in an RNG -- but some owners of
 ///   an RNG may have a hard time lending out an exclusive reference to it for the whole function
 ///   call duration.
-pub fn process_acecbor_authz_info<Scope>(
+pub(crate) fn process_acecbor_authz_info<Scope>(
     payload: &[u8],
     authorities: &impl crate::seccfg::ServerSecurityConfig<Scope = Scope>,
     nonce2: [u8; OWN_NONCE_LEN],
@@ -460,7 +460,7 @@ pub fn process_acecbor_authz_info<Scope>(
     Ok((response, derived, scope, time_constraint))
 }
 
-pub fn process_edhoc_token<Scope>(
+pub(crate) fn process_edhoc_token<Scope>(
     ead3: &[u8],
     authorities: &impl crate::seccfg::ServerSecurityConfig<Scope = Scope>,
 ) -> Result<(lakers::Credential, Scope, TimeConstraint), CredentialError> {

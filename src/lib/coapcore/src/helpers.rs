@@ -30,7 +30,7 @@ impl COwn {
     /// Find a value of self that is not found in the iterator.
     ///
     /// This asserts that the iterator is (known to be) short enough that this will always succeed.
-    pub fn not_in_iter(iterator: impl Iterator<Item = Self>) -> Self {
+    pub(crate) fn not_in_iter(iterator: impl Iterator<Item = Self>) -> Self {
         // In theory, this would allow the compiler to see that the unreachable below is indeed
         // unreachable
         assert!(
@@ -67,7 +67,7 @@ impl COwn {
     }
 
     /// Given an OSCORE Key ID (kid), find the corresponding context identifier value
-    pub fn from_kid(kid: &[u8]) -> Option<Self> {
+    pub(crate) fn from_kid(kid: &[u8]) -> Option<Self> {
         match kid {
             [first] if *first <= 0x17 || (*first >= 0x20 && *first <= 0x37) => Some(Self(*first)),
             _ => None,
@@ -82,7 +82,7 @@ impl COwn {
     /// because the type currently only generates, and because the [`lakers::ConnId`] (being an
     /// owned type) copies data into itself anyway, from where it can produce all forms; that type
     /// also has a [`lakers::ConnId::as_cbor`] accessor.
-    pub fn as_slice(&self) -> &[u8] {
+    pub(crate) fn as_slice(&self) -> &[u8] {
         core::slice::from_ref(&self.0)
     }
 }

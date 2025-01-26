@@ -22,7 +22,7 @@ use arrayvec::ArrayVec;
 /// Priority levels follow the conventions common with schedulers: 0 is the highest priority, and
 /// will only get evicted if the cache is full with other entries of the same priority. Larger
 /// numeric values indicate increasingly lower priority.
-pub trait PriorityLevel {
+pub(crate) trait PriorityLevel {
     /// Calculate the priority of the instance
     ///
     /// An instance's priority level may change while being mutated; [`OrderedPool`] will account for
@@ -111,7 +111,7 @@ pub trait PriorityLevel {
 ///   values is unique, and is an index into `.entries`.
 /// * If `T::level` is constant, `self.sorted.iter().map(|i| self.entries[i].level())` is sorted.
 #[derive(Debug)]
-pub struct OrderedPool<T: PriorityLevel, const N: usize, const L: usize> {
+pub(crate) struct OrderedPool<T: PriorityLevel, const N: usize, const L: usize> {
     /// Elements without regard for ordering
     pub entries: ArrayVec<T, N>,
     /// A sorted list of indices into entries: high priority first, ties broken by recentness
@@ -120,7 +120,7 @@ pub struct OrderedPool<T: PriorityLevel, const N: usize, const L: usize> {
 
 impl<T: PriorityLevel, const N: usize, const L: usize> OrderedPool<T, N, L> {
     /// Create an empty cache.
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         assert!(N < u16::MAX as usize, "Capacity overflow");
         // Clipping levels to u16 because they may be stored if the implementation changes.
         assert!(L < u16::MAX as usize, "Level overflow");
@@ -145,7 +145,7 @@ impl<T: PriorityLevel, const N: usize, const L: usize> OrderedPool<T, N, L> {
     /// * The callback is split in a test part and a use part, which ensures that elements that are
     ///   not looked up do not get mutated; only the selected item is mutated and will then be
     ///   sorted in correctly.
-    pub fn lookup<Ftest, Fuse, R>(&mut self, mut f_test: Ftest, f_use: Fuse) -> Option<R>
+    pub(crate) fn lookup<Ftest, Fuse, R>(&mut self, mut f_test: Ftest, f_use: Fuse) -> Option<R>
     where
         Ftest: FnMut(&T) -> bool,
         Fuse: FnOnce(&mut T) -> R,
@@ -165,7 +165,7 @@ impl<T: PriorityLevel, const N: usize, const L: usize> OrderedPool<T, N, L> {
     /// If the new element's priority is lower than the lowest in the queue, it is returned as an
     /// Err. Otherwise, the element is inserted, and any dropped lower priority element is
     /// returned in the Ok value.
-    pub fn insert(&mut self, new: T) -> Result<Option<T>, T> {
+    pub(crate) fn insert(&mut self, new: T) -> Result<Option<T>, T> {
         let new_index = self.entries.len();
         if new_index < N {
             self.entries.push(new);
@@ -207,7 +207,7 @@ impl<T: PriorityLevel, const N: usize, const L: usize> OrderedPool<T, N, L> {
     ///
     /// The element is inserted unconditionally, and the least priority element is returned by
     /// value.
-    pub fn force_insert(&mut self, new: T) -> Option<T> {
+    pub(crate) fn force_insert(&mut self, new: T) -> Option<T> {
         let new_index = self.entries.len();
         if new_index < N {
             self.entries.push(new);
@@ -257,7 +257,7 @@ impl<T: PriorityLevel, const N: usize, const L: usize> OrderedPool<T, N, L> {
     }
 
     /// Returns an iterator visiting all items in arbitrary order.
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
         self.entries.iter()
     }
 }

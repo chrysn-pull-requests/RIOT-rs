@@ -60,7 +60,7 @@ pub struct TimeConstraint {
 
 impl TimeConstraint {
     /// Creates a [`TimeConstraints`] with no bounds; it is valid at any time.
-    pub(crate) fn unbounded() -> Self {
+    pub fn unbounded() -> Self {
         Self { exp: None }
     }
 
