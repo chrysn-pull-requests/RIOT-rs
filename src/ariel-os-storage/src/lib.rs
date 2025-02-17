@@ -29,7 +29,7 @@ pub use storage::*;
 static STORAGE: OnceLock<Mutex<CriticalSectionRawMutex, Storage<Flash>>> = OnceLock::new();
 
 const MARKER_KEY: &str = "ARIEL_INIT_MARK";
-const MARKER_VALUE: u8 = 0;
+const MARKER_VALUE: u8 = 1;
 
 /// Gets a [`Range`] from the linker that can be used for a global [`Storage`].
 ///

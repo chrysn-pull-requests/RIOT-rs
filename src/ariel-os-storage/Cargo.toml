@@ -19,6 +19,7 @@ embedded-storage-async = { workspace = true }
 postcard = { version = "1.0.8", features = ["postcard-derive"] }
 sequential-storage = { version = "4.0.1", features = ["arrayvec"] }
 serde = { workspace = true, default-features = false }
+minicbor = "0.25.1"
 
 [target.'cfg(context = "rp")'.dependencies]
 embassy-time = { workspace = true, default-features = false }

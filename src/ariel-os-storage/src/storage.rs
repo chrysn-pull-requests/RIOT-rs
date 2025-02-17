@@ -2,7 +2,7 @@
 //! a flash range and backend.
 use core::ops::Range;
 
-use arrayvec::ArrayString;
+use arrayvec::ArrayVec;
 use embedded_storage_async::nor_flash::{ErrorType, MultiwriteNorFlash, NorFlash};
 use sequential_storage::{
     cache::NoCache,
@@ -18,7 +18,7 @@ pub const MAX_KEY_LEN: usize = 64usize;
 /// Data buffer length.
 pub const DATA_BUFFER_SIZE: usize = 128usize;
 
-type InternalKey = ArrayString<MAX_KEY_LEN>;
+type InternalKey = CborKey;
 
 /// Workhorse trait for [`Key`][super::Key].
 ///
@@ -178,7 +178,56 @@ impl<F: MultiwriteNorFlash> Storage<F> {
 
 impl super::Key for &str {}
 impl SealedKey for &str {
-    fn key(&self) -> ArrayString<MAX_KEY_LEN> {
-        ArrayString::<MAX_KEY_LEN>::from(self).unwrap()
+    fn key(&self) -> CborKey {
+        let mut vec = ArrayVec::new();
+        // This could be avoided if we used a back-end for which there was a minicbor encoder
+        vec.extend([0; MAX_KEY_LEN]);
+        let mut cursor = minicbor::encode::write::Cursor::new(&mut vec[..MAX_KEY_LEN]);
+        let mut encoder = minicbor::encode::Encoder::new(&mut cursor);
+        encoder.encode(self).unwrap();
+        let length = cursor.position();
+        vec.truncate(length);
+        CborKey(vec)
+    }
+}
+
+/// An owned buffer for key storage.
+///
+/// It is a panic-worthy invariant of this type that the data in the inner vector are CBOR encoded
+/// (which is what determines the length).
+#[derive(Clone, PartialEq, Eq)]
+pub struct CborKey(ArrayVec<u8, MAX_KEY_LEN>);
+
+impl sequential_storage::map::Key for CborKey {
+    fn serialize_into(
+        &self,
+        buffer: &mut [u8],
+    ) -> Result<usize, sequential_storage::map::SerializationError> {
+        buffer
+            .get_mut(..self.0.len())
+            .ok_or(sequential_storage::map::SerializationError::BufferTooSmall)?
+            .copy_from_slice(self.0.as_ref());
+        Ok(self.0.len())
+    }
+
+    fn deserialize_from(
+        buffer: &[u8],
+    ) -> Result<(Self, usize), sequential_storage::map::SerializationError> {
+        // As long as we know that it's just a single byte string, we could determine the length
+        // more cheaply by not covering all variants -- but in more complex builds, this is
+        // something we'll already have at hand.
+        let mut decoder = minicbor::decode::Decoder::new(buffer);
+        decoder
+            .skip()
+            .map_err(|_| sequential_storage::map::SerializationError::InvalidData)?;
+        let length = decoder.position();
+
+        Ok((
+            CborKey(
+                ArrayVec::try_from(&buffer[..length])
+                    .map_err(|_| sequential_storage::map::SerializationError::BufferTooSmall)?,
+            ),
+            length,
+        ))
     }
 }
