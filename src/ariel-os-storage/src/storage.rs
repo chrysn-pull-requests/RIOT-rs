@@ -2,7 +2,6 @@
 //! a flash range and backend.
 use core::ops::Range;
 
-use arrayvec::ArrayVec;
 use embedded_storage_async::nor_flash::{ErrorType, MultiwriteNorFlash, NorFlash};
 use sequential_storage::{
     cache::NoCache,
@@ -179,14 +178,10 @@ impl<F: MultiwriteNorFlash> Storage<F> {
 impl super::Key for &str {}
 impl SealedKey for &str {
     fn key(&self) -> CborKey {
-        let mut vec = ArrayVec::new();
-        // This could be avoided if we used a back-end for which there was a minicbor encoder
-        vec.extend([0; MAX_KEY_LEN]);
-        let mut cursor = minicbor::encode::write::Cursor::new(&mut vec[..MAX_KEY_LEN]);
-        let mut encoder = minicbor::encode::Encoder::new(&mut cursor);
+        let mut vec = heapless::Vec::new();
+        let mut encoder =
+            minicbor::encode::Encoder::new(minicbor_adapters::WriteToHeapless(&mut vec));
         encoder.encode(self).unwrap();
-        let length = cursor.position();
-        vec.truncate(length);
         CborKey(vec)
     }
 }
@@ -196,7 +191,7 @@ impl SealedKey for &str {
 /// It is a panic-worthy invariant of this type that the data in the inner vector are CBOR encoded
 /// (which is what determines the length).
 #[derive(Clone, PartialEq, Eq)]
-pub struct CborKey(ArrayVec<u8, MAX_KEY_LEN>);
+pub struct CborKey(heapless::Vec<u8, MAX_KEY_LEN>);
 
 impl sequential_storage::map::Key for CborKey {
     fn serialize_into(
@@ -224,7 +219,15 @@ impl sequential_storage::map::Key for CborKey {
 
         Ok((
             CborKey(
-                ArrayVec::try_from(&buffer[..length])
+                #[allow(
+                    clippy::indexing_slicing,
+                    reason = "length came from successful decoding inside the buffer"
+                )]
+                #[allow(
+                    clippy::ignored_unit_patterns,
+                    reason = "unit error is not a recommended pattern, fixing it is a needless compatibility hazard when future heapless versions follow clippy recommendations"
+                )]
+                heapless::Vec::try_from(&buffer[..length])
                     .map_err(|_| sequential_storage::map::SerializationError::BufferTooSmall)?,
             ),
             length,
