@@ -186,6 +186,20 @@ impl SealedKey for &str {
     }
 }
 
+impl super::Key for (&str, usize) {}
+impl SealedKey for (&str, usize) {
+    fn key(&self) -> CborKey {
+        // At some point we could start impl'ing it for anything that is minicbor encodable, or
+        // stay selective (and find a good way to express that they all go through minicbor
+        // anyway without duplicating code verbatim).
+        let mut vec = heapless::Vec::new();
+        let mut encoder =
+            minicbor::encode::Encoder::new(minicbor_adapters::WriteToHeapless(&mut vec));
+        encoder.encode(self).unwrap();
+        CborKey(vec)
+    }
+}
+
 /// An owned buffer for key storage.
 ///
 /// It is a panic-worthy invariant of this type that the data in the inner vector are CBOR encoded
