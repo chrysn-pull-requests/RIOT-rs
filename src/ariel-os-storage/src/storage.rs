@@ -18,6 +18,18 @@ pub const MAX_KEY_LEN: usize = 64usize;
 /// Data buffer length.
 pub const DATA_BUFFER_SIZE: usize = 128usize;
 
+type InternalKey = ArrayString<MAX_KEY_LEN>;
+
+/// Workhorse trait for [`Key`][super::Key].
+///
+/// This gives control over how a type is serialized into a [`sequential_storage`].
+pub trait SealedKey {
+    /// Converts the key into its serialized format.
+    ///
+    /// Initially, only string keys are supported, and converted as-is.
+    fn key(&self) -> InternalKey;
+}
+
 /// Object holding an instance of a key-value pair storage.
 ///
 /// You should probably look into using the global instance accessible via
@@ -43,9 +55,9 @@ impl<F: NorFlash> Storage<F> {
     /// Currently panics if `key.len() > MAX_KEY_LEN`.
     pub async fn get_raw<V: for<'d> Value<'d>>(
         &mut self,
-        key: &str,
+        key: impl super::Key,
     ) -> Result<Option<V>, sequential_storage::Error<<F as ErrorType>::Error>> {
-        let key = ArrayString::<MAX_KEY_LEN>::from(key).unwrap();
+        let key = key.key();
         let mut data_buffer = [0; DATA_BUFFER_SIZE];
 
         fetch_item::<_, V, _>(
@@ -65,10 +77,10 @@ impl<F: NorFlash> Storage<F> {
     /// Currently panics if `key.len() > MAX_KEY_LEN`.
     pub async fn insert_raw<'d, V: Value<'d>>(
         &mut self,
-        key: &str,
+        key: impl super::Key,
         value: V,
     ) -> Result<(), sequential_storage::Error<<F as ErrorType>::Error>> {
-        let key = ArrayString::<MAX_KEY_LEN>::from(key).unwrap();
+        let key = key.key();
         let mut data_buffer = [0; DATA_BUFFER_SIZE];
         store_item(
             &mut self.flash,
@@ -86,7 +98,7 @@ impl<F: NorFlash> Storage<F> {
     /// It will overwrite the last value that has the same key.
     pub async fn insert<'d, V>(
         &mut self,
-        key: &str,
+        key: impl super::Key,
         value: V,
     ) -> Result<(), sequential_storage::Error<<F as ErrorType>::Error>>
     where
@@ -104,12 +116,12 @@ impl<F: NorFlash> Storage<F> {
     /// Currently panics if `key.len() > MAX_KEY_LEN`.
     pub async fn get<V>(
         &mut self,
-        key: &str,
+        key: impl super::Key,
     ) -> Result<Option<V>, sequential_storage::Error<<F as ErrorType>::Error>>
     where
         V: Serialize + for<'d> Deserialize<'d> + Into<PostcardValue<V>>,
     {
-        let key = ArrayString::<MAX_KEY_LEN>::from(key).unwrap();
+        let key = key.key();
         let mut data_buffer = [0; DATA_BUFFER_SIZE];
 
         let postcard_value = fetch_item::<_, PostcardValue<V>, _>(
@@ -149,9 +161,9 @@ impl<F: MultiwriteNorFlash> Storage<F> {
     /// Currently panics if `key.len() > MAX_KEY_LEN`.
     pub async fn remove(
         &mut self,
-        key: &str,
+        key: impl super::Key,
     ) -> Result<(), sequential_storage::Error<<F as ErrorType>::Error>> {
-        let key = ArrayString::<MAX_KEY_LEN>::from(key).unwrap();
+        let key = key.key();
         let mut data_buffer = [0; DATA_BUFFER_SIZE];
         remove_item(
             &mut self.flash,
@@ -161,5 +173,12 @@ impl<F: MultiwriteNorFlash> Storage<F> {
             &key,
         )
         .await
+    }
+}
+
+impl super::Key for &str {}
+impl SealedKey for &str {
+    fn key(&self) -> ArrayString<MAX_KEY_LEN> {
+        ArrayString::<MAX_KEY_LEN>::from(self).unwrap()
     }
 }
