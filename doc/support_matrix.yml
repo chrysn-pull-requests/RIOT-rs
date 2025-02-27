@@ -113,6 +113,21 @@ chips:
       storage: supported
       wifi: not_available
 
+  esp32:
+    name: ESP32
+    support:
+      gpio: supported
+      debug_output: supported
+      hwrng: supported
+      i2c_controller: supported
+      spi_main: supported
+      logging: supported
+      storage: not_currently_supported
+      wifi:
+        status: supported_with_caveats
+        comments:
+          - not currently compatible with threading
+
   esp32c6:
     name: ESP32-C6
     support:
@@ -236,6 +251,11 @@ boards:
     support:
       user_usb: supported
       ethernet_over_usb: supported
+
+  espressif-esp32-devkitc:
+    name: Espressif ESP32
+    url: https://web.archive.org/web/20250227141348/https://www.espressif.com/en/dev-board/esp32-devkitc-en
+    chip: esp32
 
   espressif-esp32-c6-devkitc-1:
     name: Espressif ESP32-C6-DevKitC-1
