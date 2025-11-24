@@ -4342,9 +4342,9 @@ checksum = "aa07b0722c63805057dec824444fdc814bdfd30d1c782a3a8f63bbcf67c4ed1c"
 
 [[package]]
 name = "nrf-modem"
-version = "0.7.3"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33f1a7a9bd2319d97302333fc41b70251321b15ea19fb0d0563f3033fdc3fde1"
+checksum = "332119e260ae4f4a411ac875d649a3595230457651aab6065c29afd3a0d9d3e0"
 dependencies = [
  "arrayvec",
  "at-commands",
@@ -4352,8 +4352,8 @@ dependencies = [
  "cortex-m",
  "critical-section",
  "defmt 1.0.1",
- "embassy-sync 0.6.2",
- "embedded-io-async 0.6.1",
+ "embassy-sync 0.7.2",
+ "embedded-io-async 0.7.0",
  "futures",
  "grounded",
  "linked_list_allocator",
