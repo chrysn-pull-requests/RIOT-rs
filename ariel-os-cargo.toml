@@ -45,3 +45,6 @@ esp-radio-rtos-driver = { git = "https://github.com/ariel-os/esp-hal", rev = "53
 esp-rom-sys = { git = "https://github.com/ariel-os/esp-hal", rev = "531c629afdd80ea464682ce7f4db8baed97967a6" }
 esp-sync = { git = "https://github.com/ariel-os/esp-hal", rev = "531c629afdd80ea464682ce7f4db8baed97967a6" }
 xtensa-lx-rt = { git = "https://github.com/ariel-os/esp-hal", rev = "531c629afdd80ea464682ce7f4db8baed97967a6" }
+
+# nrf-modem: https://github.com/diondokter/nrf-modem/pull/53, branch minimal-dect (part of dect-examples)
+nrf-modem = { git = "https://github.com/chrysn-pull-requests/nrf-modem", rev = "f7ec75392991cc5fc6fb518f5a41f0bb415554a2" }
