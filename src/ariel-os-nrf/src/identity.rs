@@ -6,13 +6,13 @@ impl ariel_os_embassy_common::identity::DeviceId for DeviceId {
         reason = "making this fallible would be a breaking API change for Ariel OS"
     )]
     fn get() -> Result<Self, core::convert::Infallible> {
-        #[cfg(not(any(context = "nrf53", context = "nrf91")))]
+        #[cfg(not(any(context = "nrf53", context = "nrf91", context = "nrf54")))]
         let ficr = embassy_nrf::pac::FICR;
-        #[cfg(any(context = "nrf53", context = "nrf91"))]
+        #[cfg(any(context = "nrf53", context = "nrf91", context = "nrf54"))]
         let ficr = embassy_nrf::pac::FICR.info();
 
-        let low = ficr.deviceid(0).read();
-        let high = ficr.deviceid(1).read();
+        let low = ficr.deviceaddr(0).read();
+        let high = ficr.deviceaddr(1).read();
         Ok(Self((u64::from(high) << u32::BITS) | u64::from(low)))
     }
 

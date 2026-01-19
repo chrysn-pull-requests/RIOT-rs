@@ -89,6 +89,10 @@ fn write_memoryx() {
         (512, 1024)
     } else if context("nrf5340-net") {
         (64, 256)
+    } else if context("nrf54lm20a") {
+        // as per https://docs.nordicsemi.com/bundle/ps_nrf54LM20A/page/keyfeatures_html5.html,
+        // it's really not the ful 2048
+        (512, 2036)
     } else if context_any(&["nrf9151", "nrf9160"]).is_some() {
         let ram = 256;
         let flash = 1024;

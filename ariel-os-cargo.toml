@@ -22,9 +22,13 @@ opt-level = 3
 cyw43 = { git = "https://github.com/ariel-os/embassy", rev = "603583d9" }
 
 # branch = "embassy-hal-internal-v0.3.0+ariel-os"
-embassy-hal-internal = { git = "https://github.com/ariel-os/embassy", rev = "0feffeb3c90748112a64c6570a39e1251311accb" }
+#embassy-hal-internal = { git = "https://github.com/ariel-os/embassy", rev = "0feffeb3c90748112a64c6570a39e1251311accb" }
+# my branch "embassy-nrf-main+ariel-os+for-nrf54lm20" with cherry-picked commits from embassy-hal-internal-v0.3.0+ariel-os directly into it rather than having dedicated per-crate branches
+embassy-hal-internal = { git = "https://github.com/chrysn-pull-requests/embassy", rev = "fdba1818baf0471bad4207a4ad052ef32c024326" }
 # branch = "embassy-nrf-v0.8.0+ariel-os"
-embassy-nrf = { git = "https://github.com/ariel-os/embassy", rev = "3940a79a29ae578a35625cae949bea473abf21d1" }
+#embassy-nrf = { git = "https://github.com/ariel-os/embassy", rev = "3940a79a29ae578a35625cae949bea473abf21d1" }
+# my branch "embassy-nrf-main+ariel-os+for-nrf54lm20"
+embassy-nrf = { git = "https://github.com/chrysn-pull-requests/embassy", rev = "fdba1818baf0471bad4207a4ad052ef32c024326" }
 # branch = "embassy-net-v0.7.1+ariel-os"
 embassy-net = { git = "https://github.com/ariel-os/embassy", rev = "f88320aea64cf24026dd95ce3405ac23253b1117" }
 # branch = "embassy-rp-v0.8.0+ariel-os"

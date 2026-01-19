@@ -1,0 +1,46 @@
+boards:
+  # Also known as Nordic PCA10184
+  nrf54lm20-dk:
+    chip: nrf54lm20a
+    leds:
+      led0:
+        pin: P1_22
+        color: green
+        aliases:
+          - LED1
+      led1:
+        pin: P1_25
+        color: green
+        aliases:
+          - LED2
+      led2:
+        pin: P1_27
+        color: green
+        aliases:
+          - LED3
+      led3:
+        pin: P1_28
+        color: green
+        aliases:
+          - LED4
+    buttons:
+      button0:
+        pin: P1_26
+        active: low
+        aliases:
+          - Button 1
+      button1:
+        pin: P1_09
+        active: low
+        aliases:
+          - Button 2
+      button2:
+        pin: P1_08
+        active: low
+        aliases:
+          - Button 3
+      button3:
+        pin: P1_05
+        active: low
+        aliases:
+          - Button 4

@@ -8,6 +8,8 @@ use ariel_os::{
     time::Timer,
 };
 
+use ariel_os::debug::log::*;
+
 ariel_os::hal::group_peripherals!(Peripherals {
     leds: pins::LedPeripherals,
     buttons: pins::ButtonPeripherals,
@@ -15,7 +17,10 @@ ariel_os::hal::group_peripherals!(Peripherals {
 
 #[ariel_os::task(autostart, peripherals)]
 async fn blinky(peripherals: Peripherals) {
+    info!("Starting up");
     let mut led0 = Output::new(peripherals.leds.led0, Level::Low);
+
+    info!("LED is {}", core::any::type_name_of_val(&led0));
 
     #[allow(unused_variables)]
     let pull = Pull::Up;
@@ -25,6 +30,8 @@ async fn blinky(peripherals: Peripherals) {
     let mut btn0 = Input::builder(peripherals.buttons.button0, pull)
         .build_with_interrupt()
         .unwrap();
+
+    info!("Button is {}", core::any::type_name_of_val(&btn0));
 
     loop {
         // Wait for the button being pressed or 300 ms, whichever comes first.

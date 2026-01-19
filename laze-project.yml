@@ -301,6 +301,20 @@ contexts:
       PROBE_RS_CHIP: nrf5340_xxAA
     help: nRF5340 Network Core support
 
+  - name: nrf54l
+    # To some extent it's a guess that 54L will be a more meaningful; so far,
+    # that's the impression their marketing gives.
+    parent: nrf
+
+  - name: nrf54lm20a
+    parent: nrf54l
+    selects:
+      - cortex-m33
+    provides:
+      - has_nrf_ble
+    env:
+      PROBE_RS_CHIP: nrf54lm20a
+
   - name: nrf91
     parent: nrf
     selects:

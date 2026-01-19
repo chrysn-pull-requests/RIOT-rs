@@ -94,6 +94,11 @@ builders:
   - has_buttons
   - has_leds
   - has_usb_device_port
+- name: nrf54lm20-dk
+  parent: nrf54lm20a
+  provides:
+  - has_buttons
+  - has_leds
 - name: nrf9151-dk
   parent: nrf9151
   provides:
