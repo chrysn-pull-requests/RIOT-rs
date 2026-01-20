@@ -171,9 +171,7 @@ bt-hci = { version = "0.6.0" }
 
 # nrf-sdc 0.4.0 has not been released, yet. need it for bt-hci 0.6 bump
 #nrf-sdc = { version = "0.4.0" }
-#nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc", rev = "e64ad081a6948b3439d1e811da36d39a5785dbda" }
-# just pulled main
-nrf-sdc.path = "/home/chrysn/git/crates/nrf-sdc/nrf-sdc"
+nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc", rev = "4b4db698b7db554ca192bf9e322c5669d745d90b" }
 
 nrf-modem = { version = "0.7.3" }
 tinyrlibc = "0.5.0"
