@@ -48,3 +48,6 @@ xtensa-lx-rt = { git = "https://github.com/ariel-os/esp-hal", rev = "531c629afdd
 
 # nrf-modem: https://github.com/diondokter/nrf-modem/pull/53, branch minimal-dect (part of dect-examples)
 nrf-modem = { git = "https://github.com/chrysn-pull-requests/nrf-modem", rev = "f7ec75392991cc5fc6fb518f5a41f0bb415554a2" }
+# Workaround for https://github.com/nrf-rs/nrfxlib-sys/pull/18, should be obsolete once nrf-modem uses nrfxlib-sys 3.0.2+3.0.2.
+# The branch is even pointing to the released version.
+nrfxlib-sys = { git = "https://github.com/nrf-rs/nrfxlib-sys", rev = "0550640e9666a7231defb24e274663174f1ab0d1" }
