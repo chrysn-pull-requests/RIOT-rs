@@ -150,6 +150,7 @@ dependencies = [
  "ariel-os-hal",
  "ariel-os-identity",
  "ariel-os-macros",
+ "ariel-os-nrf",
  "ariel-os-power",
  "ariel-os-random",
  "ariel-os-rt",
@@ -1890,6 +1891,7 @@ version = "0.0.0"
 dependencies = [
  "ariel-os",
  "ariel-os-boards",
+ "nrf-modem",
 ]
 
 [[package]]
@@ -4342,9 +4344,8 @@ checksum = "aa07b0722c63805057dec824444fdc814bdfd30d1c782a3a8f63bbcf67c4ed1c"
 
 [[package]]
 name = "nrf-modem"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33f1a7a9bd2319d97302333fc41b70251321b15ea19fb0d0563f3033fdc3fde1"
+version = "0.10.0"
+source = "git+https://github.com/chrysn-pull-requests/nrf-modem?rev=f7ec75392991cc5fc6fb518f5a41f0bb415554a2#f7ec75392991cc5fc6fb518f5a41f0bb415554a2"
 dependencies = [
  "arrayvec",
  "at-commands",
@@ -4352,8 +4353,8 @@ dependencies = [
  "cortex-m",
  "critical-section",
  "defmt 1.0.1",
- "embassy-sync 0.6.2",
- "embedded-io-async 0.6.1",
+ "embassy-sync 0.7.2",
+ "embedded-io-async 0.7.0",
  "futures",
  "grounded",
  "linked_list_allocator",
@@ -4448,9 +4449,8 @@ dependencies = [
 
 [[package]]
 name = "nrfxlib-sys"
-version = "2.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1922de3a50ef4d37e7d5fec8ebc4c0c9c4a5a077cecc43e198bbbf8f5a16436a"
+version = "3.0.2"
+source = "git+https://github.com/nrf-rs/nrfxlib-sys?rev=0550640e9666a7231defb24e274663174f1ab0d1#0550640e9666a7231defb24e274663174f1ab0d1"
 dependencies = [
  "bindgen 0.70.1",
  "llvm-tools",
