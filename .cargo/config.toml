@@ -1,9 +1,0 @@
-include = ["../ariel-os-cargo.toml"]
-
-[unstable]
-# This is needed for cbindgen to work in no_std cross compiles.
-features = ['all']
-
-[unstable.git]
-shallow_index = true
-shallow_deps = true

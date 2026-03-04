@@ -1,14 +1,12 @@
 use core::marker::PhantomData;
 
-use coap_message::MinimalWritableMessage;
-use coap_request::{Request, Stack};
+use coap_request::{Stack, Request};
 
 pub struct ClientSecurityWrapper<'ws, WS>
 where
     WS: Stack + 'ws,
 {
-    wire: WS,
-    _phantom: PhantomData<&'ws ()>,
+    _phantom: PhantomData<&'ws WS>,
 }
 
 impl<'ws, WS> Stack for ClientSecurityWrapper<'ws, WS>
@@ -42,8 +40,7 @@ where
     R: Request<WS>,
     WS: Stack + 'ws,
 {
-    request: R,
-    _phantom: PhantomData<&'ws WS>,
+    _phantom: PhantomData<&'ws (WS, R)>,
 }
 
 impl<'ws, WS, R: Request<WS>> Request<ClientSecurityWrapper<'ws, WS>> for RequestWrapper<'ws, WS, R>
@@ -61,7 +58,7 @@ where
     ) -> impl Future<
         Output = Result<Self::Carry, <ClientSecurityWrapper<'ws, WS> as Stack>::RequestUnionError>,
     > {
-        todo!()
+        core::future::pending()
     }
 
     fn process_response(
@@ -69,6 +66,6 @@ where
         response: &<ClientSecurityWrapper<'ws, WS> as Stack>::ResponseMessage<'_>,
         carry: Self::Carry,
     ) -> impl Future<Output = Self::Output> {
-        todo!()
+        core::future::pending()
     }
 }
