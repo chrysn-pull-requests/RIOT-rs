@@ -79,5 +79,7 @@ pub mod oluru;
 mod seccontext;
 pub use seccontext::*;
 
+pub mod client_standalone;
+
 mod error;
 pub use error::{CredentialError, CredentialErrorDetail as CredentialErrorKind};

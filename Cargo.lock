@@ -1432,6 +1432,7 @@ dependencies = [
  "coap-message-implementations",
  "coap-message-utils",
  "coap-numbers",
+ "coap-request",
  "defmt 1.0.1",
  "defmt-or-log",
  "document-features",
