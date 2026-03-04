@@ -1,33 +1,21 @@
-//! Experiments on client use
-//!
-//! Everything in here is in decoupled from the rest of coapcore, and linked only by the underlying
-//! libraries they share.
-//!
-//! The functionality provided through here will be moved in with the rest on the long run.
-
 use core::marker::PhantomData;
 
 use coap_message::MinimalWritableMessage;
 use coap_request::{Request, Stack};
 
-/// Wrapper around any CoAP requester, which wraps all data in EDHOC.
-///
-/// This uses raw public keys as UCCS everywhere.
-///
-/// Creating this does not yet start EDHOC requests; those only get exchanged on demand.
 pub struct ClientSecurityWrapper<'ws, WS>
 where
     WS: Stack + 'ws,
 {
     wire: WS,
-    _phantom: PhantomData<&'ws ()>, // FIXME or other?
+    _phantom: PhantomData<&'ws ()>,
 }
 
 impl<'ws, WS> Stack for ClientSecurityWrapper<'ws, WS>
 where
     WS: Stack + 'ws,
 {
-    type RequestUnionError = core::convert::Infallible; // WS::RequestUnionError; // FIXME: probably more …
+    type RequestUnionError = core::convert::Infallible;
 
     type RequestMessage<'a>
         = core::convert::Infallible
@@ -39,7 +27,7 @@ where
     where
         Self: 'a;
 
-    type TransportError = core::convert::Infallible; // FIXME: probably more
+    type TransportError = core::convert::Infallible;
 
     async fn request<Req: Request<Self>>(
         &mut self,
@@ -55,7 +43,6 @@ where
     WS: Stack + 'ws,
 {
     request: R,
-    // FIXME can we do w/o?
     _phantom: PhantomData<&'ws WS>,
 }
 
@@ -64,9 +51,9 @@ where
     R: Request<WS>,
     WS: Stack,
 {
-    type Output = R::Output; // FIXME or more?
+    type Output = R::Output;
 
-    type Carry = R::Carry; // FIXME or more?
+    type Carry = R::Carry;
 
     fn build_request(
         &mut self,
