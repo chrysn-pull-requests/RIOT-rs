@@ -15,7 +15,7 @@ fn main() {
         pixelcolor::Rgb888,
         prelude::*,
         primitives::{
-            Circle, CornerRadii, Ellipse, PrimitiveStyle, PrimitiveStyleBuilder, Rectangle,
+            Circle, CornerRadii, Ellipse, Line, PrimitiveStyle, PrimitiveStyleBuilder, Rectangle,
             RoundedRectangle, Triangle,
         },
         text::Text,
@@ -34,11 +34,22 @@ fn main() {
             display.clear(Rgb888::BLACK).unwrap();
             display.flush();
 
+            Rectangle::new(Point::new(0, 0), Size::new(32, 8))
+                .into_styled(stroke)
+                .draw(&mut display)
+                .unwrap();
+
             Text::new(text, Point::new(32 - (count), 6), text_style)
                 .draw(&mut display)
                 .unwrap();
 
-            Rectangle::new(Point::new(0, 0), Size::new(32, 8))
+            // We want descenders to show ("y") but not general text escaping to the sides
+
+            Line::new(Point::new(0, 0), Point::new(0, 8))
+                .into_styled(stroke)
+                .draw(&mut display)
+                .unwrap();
+            Line::new(Point::new(31, 0), Point::new(31, 8))
                 .into_styled(stroke)
                 .draw(&mut display)
                 .unwrap();
