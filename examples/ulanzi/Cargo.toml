@@ -26,3 +26,9 @@ embedded-graphics-core = "0.4.0"
 embedded-graphics = "0.8.1"
 rand_core.workspace = true
 cfg-if.workspace = true
+coap-handler-implementations = "0.6.2"
+minicbor = "2.2.1"
+coap-message-utils = "0.3.9"
+heapless.workspace = true
+minicbor-adapters = "0.0.8"
+itertools = { version = "0.14.0", default-features = false }

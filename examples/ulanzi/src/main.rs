@@ -28,8 +28,9 @@ static SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 static PIXELS: BlockingMutex<CriticalSectionRawMutex, Cell<[RGB8; N_LEDS]>> =
     BlockingMutex::new(Cell::new([RGB8::new(0, 0, 0); N_LEDS]));
 
+#[cfg(false)]
 #[ariel_os::task(autostart, peripherals)]
-async fn matrix_refresh(peripherals: UlanziPeripherals) {
+async fn matrix_refresh_async(peripherals: UlanziPeripherals) {
     info!("matrix refresh started");
     let mut buzzer = Output::new(peripherals.buzzer, Level::Low);
     buzzer.set_low();
@@ -51,11 +52,43 @@ async fn matrix_refresh(peripherals: UlanziPeripherals) {
     let mut led = SmartLedsAdapterAsync::new(rmt.channel0, peripherals.matrix, &mut rmt_buffer);
 
     loop {
+        SIGNAL.wait().await;
         let pixels = PIXELS.lock(|pixels| pixels.get());
         if let Err(e) = led.write(pixels).await {
             log::error!("Driving LED: {:?}", e);
         }
+    }
+}
+
+#[ariel_os::task(autostart, peripherals)]
+async fn matrix_refresh_blocking_the_executor(peripherals: UlanziPeripherals) {
+    info!("matrix refresh started");
+    let mut buzzer = Output::new(peripherals.buzzer, Level::Low);
+    buzzer.set_low();
+
+    use esp_hal::rmt::Rmt;
+    use esp_hal_smartled::{SmartLedsAdapter, smart_led_buffer};
+    use smart_leds_trait::SmartLedsWrite;
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "esp32h2")] {
+            let freq = Rate::from_mhz(32);
+        } else {
+            let freq = Rate::from_mhz(80);
+        }
+    };
+
+    let rmt = Rmt::new(peripherals.rmt, freq).unwrap();
+    let mut rmt_buffer = smart_led_buffer!(N_LEDS + 20);
+    let mut led = SmartLedsAdapter::new(rmt.channel0, peripherals.matrix, &mut rmt_buffer);
+
+    loop {
         SIGNAL.wait().await;
+        let pixels = PIXELS.lock(|pixels| pixels.get());
+        // Delibertely not awaiting: We *need* to do this continuously
+        if let Err(e) = led.write(pixels) {
+            log::error!("Driving LED: {:?}", e);
+        }
     }
 }
 
@@ -77,6 +110,14 @@ mod drawer {
                 framebuffer: [RGB8::new(0, 0, 0); 256],
             }
         }
+
+        pub fn get(&mut self, n: usize) -> RGB8 {
+            if n > 255 {
+                return RGB8::new(0, 0, 0);
+            }
+            self.framebuffer[n]
+        }
+
         pub fn set(&mut self, n: usize) {
             if n > 255 {
                 return;
@@ -140,4 +181,5 @@ mod drawer {
 
 //this is currently scrambling output
 //mod lavalamp;
-mod scrolltext;
+//mod scrolltext;
+mod coap;

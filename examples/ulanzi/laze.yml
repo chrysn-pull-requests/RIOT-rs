@@ -11,3 +11,7 @@ apps:
       #- network
       - random
       - ?release
+      - coap-server
+      # impossible due to https://github.com/ariel-os/ariel-os/pull/1786
+      #- coap-server-config-storage
+      - coap-server-config-demokeys

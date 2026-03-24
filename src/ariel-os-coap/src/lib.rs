@@ -57,7 +57,8 @@ mod demo_setup {
     const ADMIN_SCOPE: cboritem::CborItem<'_> = cbor!([
             ["/stdout", 17 / GET and FETCH /],
             ["/.well-known/core", 1],
-            ["/poem", 1]
+            ["/poem", 1],
+            ["/fb", 0xff]
     ]);
     /// Credential by which the administrator of any demo device is recognized.
     ///
