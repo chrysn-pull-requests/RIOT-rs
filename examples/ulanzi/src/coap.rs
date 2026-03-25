@@ -11,8 +11,7 @@ use embedded_graphics::{Pixel, draw_target::DrawTarget, pixelcolor::Rgb888, prel
 static DISPLAY: BlockingMutex<CriticalSectionRawMutex, RefCell<MyDrawTarget>> =
     BlockingMutex::new(RefCell::new(MyDrawTarget::new()));
 
-#[ariel_os::task(autostart)]
-async fn main() {
+pub(crate) async fn main() {
     info!("Waiting for network to come up wihout disturbance by LEDs");
 
     Timer::after(Duration::from_secs(10)).await;

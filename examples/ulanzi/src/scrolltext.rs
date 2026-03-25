@@ -6,8 +6,7 @@ use ariel_os::{
 
 use super::drawer::MyDrawTarget;
 
-#[ariel_os::task(autostart)]
-async fn main() {
+pub(crate) async fn main(text: &str) -> ! {
     info!("scrolltext thread started");
 
     use embedded_graphics::{
@@ -26,8 +25,6 @@ async fn main() {
     let stroke = PrimitiveStyle::with_stroke(Rgb888::RED, 1);
 
     let text_style = MonoTextStyle::new(&FONT_5X8, Rgb888::YELLOW);
-
-    let text = "ARIEL OS";
 
     loop {
         for count in 0i32..(text.len() as i32 * 5 + 32) {
