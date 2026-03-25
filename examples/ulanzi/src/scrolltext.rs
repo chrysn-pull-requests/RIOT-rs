@@ -6,8 +6,8 @@ use ariel_os::{
 
 use super::drawer::MyDrawTarget;
 
-#[ariel_os::thread(autostart, priority = 9)]
-fn main() {
+#[ariel_os::task(autostart)]
+async fn main() {
     info!("scrolltext thread started");
 
     use embedded_graphics::{
@@ -56,7 +56,7 @@ fn main() {
 
             display.flush();
 
-            block_on(Timer::after(Duration::from_millis(128)));
+            Timer::after(Duration::from_millis(128)).await;
         }
     }
 }
