@@ -6,13 +6,22 @@ use ariel_os::{
 use super::drawer::MyDrawTarget;
 use core::cell::RefCell;
 use embassy_sync::blocking_mutex::{Mutex as BlockingMutex, raw::CriticalSectionRawMutex};
+use embassy_sync::signal::Signal;
 use embedded_graphics::{Pixel, draw_target::DrawTarget, pixelcolor::Rgb888, prelude::Point};
 
 static DISPLAY: BlockingMutex<CriticalSectionRawMutex, RefCell<MyDrawTarget>> =
     BlockingMutex::new(RefCell::new(MyDrawTarget::new()));
 
+static TEXT: Signal<CriticalSectionRawMutex, Option<heapless::String<128>>> = Signal::new();
+
 pub(crate) async fn main() {
     info!("Waiting for network to come up wihout disturbance by LEDs");
+
+    Timer::after(Duration::from_secs(10)).await;
+
+    ariel_os::asynch::spawner()
+        .spawn(run_text_if_any())
+        .unwrap();
 
     Timer::after(Duration::from_secs(10)).await;
 
@@ -30,13 +39,21 @@ pub(crate) async fn main() {
 
 #[ariel_os::task(autostart)]
 async fn running_coap() {
-    use coap_handler_implementations::{HandlerBuilder, TypeHandler, new_dispatcher, with_get_put};
+    use coap_handler_implementations::{
+        HandlerBuilder, TypeHandler, new_dispatcher, with_get_put, with_put_delete,
+    };
 
-    let handler = new_dispatcher().at_with_attributes(
-        &["fb"],
-        &[],
-        TypeHandler::new_minicbor_2(with_get_put(FrameBuffer)),
-    );
+    let handler = new_dispatcher()
+        .at_with_attributes(
+            &["fb"],
+            &[],
+            TypeHandler::new_minicbor_2(with_get_put(FrameBuffer)),
+        )
+        .at_with_attributes(
+            &["text"],
+            &[],
+            TypeHandler::new_minicbor_2(with_put_delete(GlobalText)),
+        );
 
     ariel_os::coap::coap_run(handler).await;
 }
@@ -110,7 +127,7 @@ impl<'de, C> minicbor::Decode<'de, C> for CurrentFrameBuffer {
         d: &mut minicbor::Decoder<'de>,
         _ctx: &mut C,
     ) -> Result<Self, minicbor::decode::Error> {
-        // FIXME where do we assert on the outer size?
+        TEXT.signal(None);
 
         // Should we use bytes_iter to support indefinite length?
         let buffer = d.bytes()?;
@@ -129,5 +146,46 @@ impl<'de, C> minicbor::Decode<'de, C> for CurrentFrameBuffer {
             display.flush();
         });
         Ok(CurrentFrameBuffer)
+    }
+}
+
+struct GlobalText;
+
+#[derive(minicbor::Decode)]
+#[cbor(transparent)]
+struct PuttableText(#[cbor(with = "minicbor_adapters")] heapless::String<128>);
+
+impl coap_handler_implementations::PutRenderable for GlobalText {
+    type Put = PuttableText;
+
+    fn put(&mut self, representation: &Self::Put) -> Result<(), coap_message_utils::Error> {
+        TEXT.signal(Some(representation.0.clone()));
+        Ok(())
+    }
+}
+
+impl coap_handler_implementations::DeleteRenderable for GlobalText {
+    fn delete(&mut self) -> Result<(), coap_message_utils::Error> {
+        TEXT.signal(None);
+        Ok(())
+    }
+}
+
+#[ariel_os::task]
+async fn run_text_if_any() {
+    use embassy_futures::select::{Either, select};
+
+    let mut text = TEXT.wait().await;
+    loop {
+        match text {
+            Some(t) => {
+                let Either::Second(new_text) =
+                    select(crate::scrolltext::main(&t), TEXT.wait()).await;
+                text = new_text;
+            }
+            None => {
+                text = TEXT.wait().await;
+            }
+        }
     }
 }

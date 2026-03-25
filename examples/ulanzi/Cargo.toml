@@ -32,3 +32,4 @@ coap-message-utils = "0.3.9"
 heapless.workspace = true
 minicbor-adapters = "0.0.8"
 itertools = { version = "0.14.0", default-features = false }
+embassy-futures.workspace = true
