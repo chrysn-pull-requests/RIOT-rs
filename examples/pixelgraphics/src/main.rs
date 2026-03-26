@@ -1,18 +1,12 @@
 #![no_main]
 #![no_std]
-#![feature(impl_trait_in_assoc_type)]
-#![feature(used_with_arg)]
 
-use ariel_os::debug::{exit, log, log::*};
+use ariel_os::debug::log::*;
 use core::cell::Cell;
 
-use ariel_os::gpio::{Level, Output};
 use ariel_os::hal::peripherals;
-use ariel_os::thread::block_on;
-use ariel_os::time::{Duration, Timer};
 
 use embassy_sync::blocking_mutex::{Mutex as BlockingMutex, raw::CriticalSectionRawMutex};
-use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use esp_hal::time::Rate;
 
@@ -57,7 +51,7 @@ async fn matrix_refresh_async(peripherals: PixelPeripherals) {
         SIGNAL.wait().await;
         let pixels = PIXELS.lock(|pixels| pixels.get());
         if let Err(e) = led.write(pixels).await {
-            log::error!("Driving LED: {:?}", e);
+            error!("Driving LED: {:?}", e);
         }
     }
 }
@@ -88,7 +82,7 @@ async fn matrix_refresh_blocking_the_executor(peripherals: PixelPeripherals) {
         // Delibertely not awaiting: We *need* to do this continuously
         critical_section::with(|_| {
             if let Err(e) = led.write(pixels) {
-                log::error!("Driving LED: {:?}", e);
+                error!("Driving LED: {:?}", e);
             }
         });
     }
@@ -181,7 +175,6 @@ mod drawer {
     }
 }
 
-//this is currently scrambling output
 mod coap;
 mod lavalamp;
 mod scrolltext;
