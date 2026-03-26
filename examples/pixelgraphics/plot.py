@@ -15,7 +15,7 @@ match sys.argv[2]:
         columns = 32
         pixels = [[(x / columns) ** 1.8, (1 - x / columns) ** 2.2, (y / rows) ** 3.3] for y in range(rows) for x in range(columns)]
 
-        encoded = cbor2.CBORTag(40, [[rows, columns, 3], cbor2.CBORTag(64, bytes(int(255 * channel) for pixel in pixels for channel in pixel))])
+        encoded = cbor2.CBORTag(40, [[rows, columns, 3], cbor2.CBORTag(64, bytes(int(4 * channel) for pixel in pixels for channel in pixel))])
         encoded = cbor2.dumps(encoded)
     case "stop":
         path = "text"

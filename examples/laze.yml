@@ -20,6 +20,7 @@ subdirs:
   - i2c-scanner
   - log
   - minimal
+  - pixelgraphics
   - power
   - random
   - sensors-debug
@@ -35,6 +36,5 @@ subdirs:
   - threading-multicore
   - threading-timers
   - udp-echo
-  - ulanzi
   - usb-keyboard
   - usb-serial

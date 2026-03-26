@@ -1,5 +1,5 @@
 apps:
-  - name: ulanzi
+  - name: pixelgraphics-example
     context:
       - ulanzi-tc001
       - waveshare-esp32-s3-matrix
