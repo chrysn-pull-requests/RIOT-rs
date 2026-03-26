@@ -1,3 +1,6 @@
+//! Module that provides usable coordinate based drawing for the [`super::graphicsdriver`]
+//! back-end.
+
 use embedded_graphics::{
     geometry::{OriginDimensions, Size},
     pixelcolor::Rgb888,
@@ -6,13 +9,13 @@ use embedded_graphics::{
 use smart_leds::RGB8;
 
 pub struct MyDrawTarget {
-    framebuffer: [RGB8; 256],
+    framebuffer: [RGB8; super::N_LEDS],
 }
 
 impl MyDrawTarget {
     pub const fn new() -> Self {
         Self {
-            framebuffer: [RGB8::new(0, 0, 0); 256],
+            framebuffer: [RGB8::new(0, 0, 0); super::N_LEDS],
         }
     }
 
@@ -59,18 +62,27 @@ impl DrawTarget for MyDrawTarget {
             // Check if the pixel coordinates are out of bounds (negative or greater than
             // (32,8)). `DrawTarget` implementation are required to discard any out of bounds
             // pixels without returning an error or causing a panic.
-            if let Ok((x @ 0..=31, y @ 0..=7)) = coord.try_into() {
-                // Calculate the index in the framebuffer.
-                let index: u32 = {
-                    if y % 2 == 0 {
-                        x + y * 32
-                    } else {
-                        (y) * 32 + 31 - x
-                    }
-                };
-
-                self.framebuffer[index as usize] = RGB8::new(color.r(), color.g(), color.b());
+            let Point { x, y } = coord;
+            let Ok(x) = usize::try_from(x) else {
+                continue;
+            };
+            let Ok(y) = usize::try_from(y) else {
+                continue;
+            };
+            if x >= usize::from(super::N_COLUMNS) || y >= usize::from(super::N_ROWS) {
+                continue;
             }
+            // Calculate the index in the framebuffer.
+            // Boustrophedon layout
+            let index = {
+                if y % 2 == 0 {
+                    x + y * usize::from(super::N_COLUMNS)
+                } else {
+                    (y + 1) * usize::from(super::N_COLUMNS) - 1 - x
+                }
+            };
+
+            self.framebuffer[index] = RGB8::new(color.r(), color.g(), color.b());
         }
 
         Ok(())
@@ -79,6 +91,6 @@ impl DrawTarget for MyDrawTarget {
 
 impl OriginDimensions for MyDrawTarget {
     fn size(&self) -> Size {
-        Size::new(32, 8)
+        Size::new(super::N_COLUMNS as _, super::N_ROWS as _)
     }
 }

@@ -30,7 +30,7 @@ pub(crate) async fn main() {
     DISPLAY.lock(|display| {
         let mut display = display.borrow_mut();
         display.draw_iter(
-            itertools::iproduct!(0..32, 0..8)
+            itertools::iproduct!(0..i32::from(super::N_COLUMNS), 0..i32::from(super::N_ROWS))
                 .map(|(x, y)| Pixel(Point { x, y }, Rgb888::new((x as u8) * 8, (y as u8) * 8, 0))),
         );
         display.flush();
@@ -65,7 +65,7 @@ impl coap_handler_implementations::GetRenderable for FrameBuffer {
 
     fn get(&mut self) -> Result<Self::Get, coap_message_utils::Error> {
         Ok(CborFrameBuffer {
-            shape: [8, 32, 3].into(),
+            shape: [super::N_ROWS, super::N_COLUMNS, 3].into(),
             data: CurrentFrameBuffer,
         })
     }
@@ -78,7 +78,7 @@ impl coap_handler_implementations::PutRenderable for FrameBuffer {
 
     fn put(&mut self, representation: &Self::Put) -> Result<(), coap_message_utils::Error> {
         // By the time the representation has been created, it has all already happened
-        if representation.shape != [8, 32, 3] {
+        if representation.shape != [super::N_ROWS, super::N_COLUMNS, 3] {
             // Cry me a river: but we still already acted on it.
             return Err(coap_message_utils::Error::bad_request().with_title("Bad shape"));
         }
@@ -90,7 +90,7 @@ impl coap_handler_implementations::PutRenderable for FrameBuffer {
 #[cbor(tag(40), array)] // taG: MultiDimArrayR
 struct CborFrameBuffer {
     #[cbor(n(0), with = "minicbor_adapters")]
-    shape: heapless::vec::Vec<u8, 3>,
+    shape: heapless::vec::Vec<u16, 3>,
     #[cbor(n(1), tag(64))]
     data: CurrentFrameBuffer,
 }
@@ -109,8 +109,9 @@ impl<C> minicbor::Encode<C> for CurrentFrameBuffer {
             let mut display = display.borrow_mut();
             // Let's hope it'll see throught that we don't really need to allocate but just memcpy
             // out of the buffer
-            let mut buffer = [0u8; 256 * 3];
+            let mut buffer = [0u8; super::N_LEDS * 3];
             for (i, [r, g, b]) in buffer.as_chunks_mut().0.into_iter().enumerate() {
+                // FIXME this does *not* do the right thing, it doesn't do any renumbering.
                 let pixel = display.get(i);
                 *r = pixel.r;
                 *g = pixel.g;
@@ -138,8 +139,9 @@ impl<'de, C> minicbor::Decode<'de, C> for CurrentFrameBuffer {
             // out of the buffer
             display.draw_iter(buffer.as_chunks().0.into_iter().enumerate().map(
                 |(i, [r, g, b])| {
-                    let x = (i % 32) as i32;
-                    let y = (i / 32) as i32;
+                    let i = i as i32;
+                    let x = i % i32::from(super::N_COLUMNS);
+                    let y = i / i32::from(super::N_COLUMNS);
                     Pixel(Point { x, y }, Rgb888::new(*r, *g, *b))
                 },
             ));

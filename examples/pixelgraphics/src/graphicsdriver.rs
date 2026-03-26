@@ -1,3 +1,5 @@
+//! Module that handles LED value data in the arrangement in which it is sent to the LED pixels.
+
 use ariel_os::debug::log::*;
 use core::cell::Cell;
 
@@ -18,10 +20,9 @@ ariel_os::hal::define_peripherals!(PixelPeripherals {
 });
 
 use smart_leds::RGB8;
-const N_LEDS: usize = 32 * 8;
 pub(crate) static SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
-pub(crate) static PIXELS: BlockingMutex<CriticalSectionRawMutex, Cell<[RGB8; N_LEDS]>> =
-    BlockingMutex::new(Cell::new([RGB8::new(0, 0, 0); N_LEDS]));
+pub(crate) static PIXELS: BlockingMutex<CriticalSectionRawMutex, Cell<[RGB8; super::N_LEDS]>> =
+    BlockingMutex::new(Cell::new([RGB8::new(0, 0, 0); super::N_LEDS]));
 
 #[cfg(false)]
 #[ariel_os::task(autostart, peripherals)]
@@ -41,7 +42,7 @@ async fn matrix_refresh_async(peripherals: PixelPeripherals) {
     };
 
     let rmt = Rmt::new(peripherals.rmt, freq).unwrap().into_async();
-    let mut rmt_buffer = smart_led_buffer!(N_LEDS + 20);
+    let mut rmt_buffer = smart_led_buffer!(super::N_LEDS + 20);
     let mut led = SmartLedsAdapterAsync::new(rmt.channel0, peripherals.matrix, &mut rmt_buffer);
 
     loop {
@@ -70,7 +71,7 @@ async fn matrix_refresh_blocking_the_executor(peripherals: PixelPeripherals) {
     };
 
     let rmt = Rmt::new(peripherals.rmt, freq).unwrap();
-    let mut rmt_buffer = smart_led_buffer!(N_LEDS + 20);
+    let mut rmt_buffer = smart_led_buffer!(super::N_LEDS + 20);
     let mut led = SmartLedsAdapter::new(rmt.channel0, peripherals.matrix, &mut rmt_buffer);
 
     loop {

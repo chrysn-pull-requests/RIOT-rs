@@ -5016,6 +5016,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "pixelgraphics-example"
+version = "0.1.0"
+dependencies = [
+ "ariel-os",
+ "ariel-os-boards",
+ "cfg-if",
+ "coap-handler-implementations",
+ "coap-message-utils",
+ "critical-section",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-sync 0.7.2",
+ "embassy-time",
+ "embassy-time-queue-utils",
+ "embedded-graphics 0.8.2",
+ "embedded-graphics-core",
+ "esp-hal",
+ "esp-hal-smartled",
+ "heapless 0.9.1",
+ "itertools 0.14.0",
+ "minicbor",
+ "minicbor-adapters",
+ "rand_core 0.9.3",
+ "smart-leds",
+ "smart-leds-trait",
+]
+
+[[package]]
 name = "pkcs8"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6554,34 +6582,6 @@ name = "ufmt-write"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
-
-[[package]]
-name = "ulanzi"
-version = "0.1.0"
-dependencies = [
- "ariel-os",
- "ariel-os-boards",
- "cfg-if",
- "coap-handler-implementations",
- "coap-message-utils",
- "critical-section",
- "embassy-executor",
- "embassy-futures",
- "embassy-sync 0.7.2",
- "embassy-time",
- "embassy-time-queue-utils",
- "embedded-graphics 0.8.2",
- "embedded-graphics-core",
- "esp-hal",
- "esp-hal-smartled",
- "heapless 0.9.1",
- "itertools 0.14.0",
- "minicbor",
- "minicbor-adapters",
- "rand_core 0.9.3",
- "smart-leds",
- "smart-leds-trait",
-]
 
 [[package]]
 name = "unicode-ident"
