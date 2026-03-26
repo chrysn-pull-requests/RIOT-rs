@@ -22,9 +22,12 @@ pub(crate) async fn main(text: &str) -> ! {
 
     let mut display = MyDrawTarget::new();
 
-    let stroke = PrimitiveStyle::with_stroke(Rgb888::RED, 1);
+    // /3: crude compensation for the strong blue there
+    let ariel_brick = Rgb888::new(0xd9, 0x4b, 0x26 / 3);
+    let ariel_offwhite = Rgb888::new(0xee, 0xee, 0xee / 3);
+    let stroke = PrimitiveStyle::with_stroke(ariel_brick, 1);
 
-    let text_style = MonoTextStyle::new(&FONT_5X8, Rgb888::YELLOW);
+    let text_style = MonoTextStyle::new(&FONT_5X8, ariel_offwhite);
 
     loop {
         for count in 0i32..(text.len() as i32 * 5 + 32) {
