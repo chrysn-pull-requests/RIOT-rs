@@ -2,11 +2,13 @@ apps:
   - name: ulanzi
     context:
       - ulanzi-tc001
+      - waveshare-esp32-s3-matrix
     # env:
     #   global:
     #     RUSTFLAGS:
     #     - --cfg place_rmt_driver_in_ram
     selects:
+      - smartled-config
       #      - sw/threading
       #- network
       - random
@@ -15,3 +17,21 @@ apps:
       # impossible due to https://github.com/ariel-os/ariel-os/pull/1786
       #- coap-server-config-storage
       - coap-server-config-demokeys
+
+modules:
+  - name: smartled-esp32
+    provides_unique: [smartled-config]
+    context:
+      - esp32
+    env:
+      global:
+        FEATURES:
+          - esp-hal-smartled/esp32
+  - name: smartled-esp32s3
+    provides_unique: [smartled-config]
+    context:
+      - esp32s3
+    env:
+      global:
+        FEATURES:
+          - esp-hal-smartled/esp32s3

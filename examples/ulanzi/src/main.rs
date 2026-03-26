@@ -18,7 +18,10 @@ use esp_hal::time::Rate;
 
 use critical_section;
 
-ariel_os::hal::define_peripherals!(UlanziPeripherals {
+ariel_os::hal::define_peripherals!(PixelPeripherals {
+    #[cfg(context = "waveshare-esp32-s3-matrix")]
+    matrix: GPIO14,
+    #[cfg(context = "ulanzi-tc001")]
     matrix: GPIO32,
     rmt: RMT,
 });
@@ -31,7 +34,7 @@ static PIXELS: BlockingMutex<CriticalSectionRawMutex, Cell<[RGB8; N_LEDS]>> =
 
 #[cfg(false)]
 #[ariel_os::task(autostart, peripherals)]
-async fn matrix_refresh_async(peripherals: UlanziPeripherals) {
+async fn matrix_refresh_async(peripherals: PixelPeripherals) {
     info!("matrix refresh started");
 
     use esp_hal::rmt::Rmt;
@@ -60,7 +63,7 @@ async fn matrix_refresh_async(peripherals: UlanziPeripherals) {
 }
 
 #[ariel_os::task(autostart, peripherals)]
-async fn matrix_refresh_blocking_the_executor(peripherals: UlanziPeripherals) {
+async fn matrix_refresh_blocking_the_executor(peripherals: PixelPeripherals) {
     info!("matrix refresh started");
 
     use esp_hal::rmt::Rmt;

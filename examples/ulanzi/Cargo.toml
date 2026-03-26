@@ -18,8 +18,8 @@ smart-leds-trait = "0.3.1"
 esp-hal.workspace = true
 #esp-hal-smartled = { version = "0.17.0", features = ["esp32", "defmt"] }
 esp-hal-smartled = { git = "https://github.com/kaspar030/esp-hal-community", branch = "fix-smartled-with-esp_hal-1.0.0", features = [
-  "esp32",
   "defmt",
+  # … and any of esp32 or esp32s3 or future others will be enabled by smartled-config through the local laze.yml.
 ] }
 embassy-executor = { workspace = true, default-features = false }
 embedded-graphics-core = "0.4.0"
@@ -34,3 +34,6 @@ minicbor-adapters = "0.0.8"
 itertools = { version = "0.14.0", default-features = false }
 embassy-futures.workspace = true
 critical-section.workspace = true
+
+# Needed for the S3 Matrix; workaround for <https://github.com/ariel-os/ariel-os/issues/1949>
+embassy-time-queue-utils = { version = "*", features = ["_generic-queue"] }
