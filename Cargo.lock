@@ -6564,6 +6564,7 @@ dependencies = [
  "cfg-if",
  "coap-handler-implementations",
  "coap-message-utils",
+ "critical-section",
  "embassy-executor",
  "embassy-futures",
  "embassy-sync 0.7.2",

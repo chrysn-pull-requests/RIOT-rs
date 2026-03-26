@@ -16,6 +16,8 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use esp_hal::time::Rate;
 
+use critical_section;
+
 ariel_os::hal::define_peripherals!(UlanziPeripherals {
     buzzer: GPIO15,
     matrix: GPIO32,
@@ -86,9 +88,11 @@ async fn matrix_refresh_blocking_the_executor(peripherals: UlanziPeripherals) {
         SIGNAL.wait().await;
         let pixels = PIXELS.lock(|pixels| pixels.get());
         // Delibertely not awaiting: We *need* to do this continuously
-        if let Err(e) = led.write(pixels) {
-            log::error!("Driving LED: {:?}", e);
-        }
+        critical_section::with(|_| {
+            if let Err(e) = led.write(pixels) {
+                log::error!("Driving LED: {:?}", e);
+            }
+        });
     }
 }
 

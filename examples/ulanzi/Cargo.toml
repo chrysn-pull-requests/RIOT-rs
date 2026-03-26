@@ -33,3 +33,4 @@ heapless.workspace = true
 minicbor-adapters = "0.0.8"
 itertools = { version = "0.14.0", default-features = false }
 embassy-futures.workspace = true
+critical-section.workspace = true
