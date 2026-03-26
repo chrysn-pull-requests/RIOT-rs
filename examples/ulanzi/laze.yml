@@ -1,7 +1,7 @@
 apps:
   - name: ulanzi
     context:
-      - espressif-esp32-devkitc
+      - ulanzi-tc001
     # env:
     #   global:
     #     RUSTFLAGS:

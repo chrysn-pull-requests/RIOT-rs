@@ -19,7 +19,6 @@ use esp_hal::time::Rate;
 use critical_section;
 
 ariel_os::hal::define_peripherals!(UlanziPeripherals {
-    buzzer: GPIO15,
     matrix: GPIO32,
     rmt: RMT,
 });
@@ -34,8 +33,6 @@ static PIXELS: BlockingMutex<CriticalSectionRawMutex, Cell<[RGB8; N_LEDS]>> =
 #[ariel_os::task(autostart, peripherals)]
 async fn matrix_refresh_async(peripherals: UlanziPeripherals) {
     info!("matrix refresh started");
-    let mut buzzer = Output::new(peripherals.buzzer, Level::Low);
-    buzzer.set_low();
 
     use esp_hal::rmt::Rmt;
     use esp_hal_smartled::{SmartLedsAdapterAsync, smart_led_buffer};
@@ -65,8 +62,6 @@ async fn matrix_refresh_async(peripherals: UlanziPeripherals) {
 #[ariel_os::task(autostart, peripherals)]
 async fn matrix_refresh_blocking_the_executor(peripherals: UlanziPeripherals) {
     info!("matrix refresh started");
-    let mut buzzer = Output::new(peripherals.buzzer, Level::Low);
-    buzzer.set_low();
 
     use esp_hal::rmt::Rmt;
     use esp_hal_smartled::{SmartLedsAdapter, smart_led_buffer};
