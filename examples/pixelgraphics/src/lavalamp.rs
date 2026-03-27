@@ -10,8 +10,8 @@ use smart_leds::{
 pub(crate) async fn lavalamp() {
     println!("lavalamp task started");
     const NODE: Node = Node::new();
-    let mut nodes = [NODE; 256];
-    let mut storage = [colors::BLACK; 256];
+    let mut nodes = [NODE; super::N_LEDS as _];
+    let mut storage = [colors::BLACK; super::N_LEDS as _];
     let mut rng = ariel_os::random::fast_rng();
 
     let mut hue: u8 = rng.next_u32() as u8;

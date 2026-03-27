@@ -7,7 +7,12 @@ use super::drawer::MyDrawTarget;
 use core::cell::RefCell;
 use embassy_sync::blocking_mutex::{Mutex as BlockingMutex, raw::CriticalSectionRawMutex};
 use embassy_sync::signal::Signal;
-use embedded_graphics::{Pixel, draw_target::DrawTarget, pixelcolor::Rgb888, prelude::Point};
+use embedded_graphics::{
+    Pixel,
+    draw_target::DrawTarget,
+    pixelcolor::{Rgb888, RgbColor as _},
+    prelude::Point,
+};
 
 static DISPLAY: BlockingMutex<CriticalSectionRawMutex, RefCell<MyDrawTarget>> =
     BlockingMutex::new(RefCell::new(MyDrawTarget::new()));
@@ -30,8 +35,14 @@ pub(crate) async fn main() {
     DISPLAY.lock(|display| {
         let mut display = display.borrow_mut();
         display.draw_iter(
-            itertools::iproduct!(0..i32::from(super::N_COLUMNS), 0..i32::from(super::N_ROWS))
-                .map(|(x, y)| Pixel(Point { x, y }, Rgb888::new((x as u8) * 8, (y as u8) * 8, 0))),
+            itertools::iproduct!(0..i32::from(super::N_COLUMNS), 0..i32::from(super::N_ROWS)).map(
+                |(x, y)| {
+                    Pixel(
+                        Point { x, y },
+                        Rgb888::new((x as u8), (y as u8), (x + y) as u8 / 8),
+                    )
+                },
+            ),
         );
         display.flush();
     });
@@ -108,14 +119,16 @@ impl<C> minicbor::Encode<C> for CurrentFrameBuffer {
         DISPLAY.lock(|display| {
             let mut display = display.borrow_mut();
             // Let's hope it'll see throught that we don't really need to allocate but just memcpy
-            // out of the buffer
+            // into the target.
             let mut buffer = [0u8; super::N_LEDS * 3];
             for (i, [r, g, b]) in buffer.as_chunks_mut().0.into_iter().enumerate() {
-                // FIXME this does *not* do the right thing, it doesn't do any renumbering.
-                let pixel = display.get(i);
-                *r = pixel.r;
-                *g = pixel.g;
-                *b = pixel.b;
+                let i = i as i32;
+                let x = i % i32::from(super::N_COLUMNS);
+                let y = i / i32::from(super::N_COLUMNS);
+                let pixel = display.read_framebuffer_at(Point { x, y });
+                *r = pixel.r();
+                *g = pixel.g();
+                *b = pixel.b();
             }
             e.bytes(&buffer)
         })?;
