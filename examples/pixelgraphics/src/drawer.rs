@@ -42,7 +42,7 @@ impl MyDrawTarget {
 fn point_to_usizes(Point { x, y }: Point) -> Option<(usize, usize)> {
     let x: usize = x.try_into().ok()?;
     let y: usize = y.try_into().ok()?;
-    if x < usize::from(super::N_COLUMNS) || y < usize::from(super::N_ROWS) {
+    if x < usize::from(super::N_COLUMNS) && y < usize::from(super::N_ROWS) {
         Some((x, y))
     } else {
         None
