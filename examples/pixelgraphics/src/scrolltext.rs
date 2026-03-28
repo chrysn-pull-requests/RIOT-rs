@@ -4,8 +4,6 @@ use ariel_os::{
     time::{Duration, Timer},
 };
 
-use super::drawer::MyDrawTarget;
-
 pub(crate) async fn main(text: &str) -> ! {
     info!("scrolltext thread started");
 
@@ -20,8 +18,6 @@ pub(crate) async fn main(text: &str) -> ! {
         text::Text,
     };
 
-    let mut display = MyDrawTarget::new();
-
     // /3: crude compensation for the strong blue there
     let ariel_brick = Rgb888::new(0xd9, 0x4b, 0x26 / 3);
     let ariel_offwhite = Rgb888::new(0xee, 0xee, 0xee / 3);
@@ -30,33 +26,37 @@ pub(crate) async fn main(text: &str) -> ! {
     let text_style = MonoTextStyle::new(&FONT_5X8, ariel_offwhite);
 
     loop {
-        for count in 0i32..(text.len() as i32 * 5 + 32) {
-            display.clear(Rgb888::BLACK).unwrap();
-            display.flush();
+        super::DISPLAY.lock(|display| {
+            let mut display = display.borrow_mut();
 
-            Rectangle::new(Point::new(0, 0), Size::new(32, 8))
-                .into_styled(stroke)
-                .draw(&mut display)
-                .unwrap();
+            for count in 0i32..(text.len() as i32 * 5 + 32) {
+                display.clear(Rgb888::BLACK).unwrap();
+                display.flush();
 
-            Text::new(text, Point::new(32 - (count), 6), text_style)
-                .draw(&mut display)
-                .unwrap();
+                Rectangle::new(Point::new(0, 0), Size::new(32, 8))
+                    .into_styled(stroke)
+                    .draw(&mut *display)
+                    .unwrap();
 
-            // We want descenders to show ("y") but not general text escaping to the sides
+                Text::new(text, Point::new(32 - (count), 6), text_style)
+                    .draw(&mut *display)
+                    .unwrap();
 
-            Line::new(Point::new(0, 0), Point::new(0, 8))
-                .into_styled(stroke)
-                .draw(&mut display)
-                .unwrap();
-            Line::new(Point::new(31, 0), Point::new(31, 8))
-                .into_styled(stroke)
-                .draw(&mut display)
-                .unwrap();
+                // We want descenders to show ("y") but not general text escaping to the sides
 
-            display.flush();
+                Line::new(Point::new(0, 0), Point::new(0, 8))
+                    .into_styled(stroke)
+                    .draw(&mut *display)
+                    .unwrap();
+                Line::new(Point::new(31, 0), Point::new(31, 8))
+                    .into_styled(stroke)
+                    .draw(&mut *display)
+                    .unwrap();
 
-            Timer::after(Duration::from_millis(128)).await;
-        }
+                display.flush();
+            }
+        });
+
+        Timer::after(Duration::from_millis(128)).await;
     }
 }

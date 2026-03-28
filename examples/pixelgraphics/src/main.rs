@@ -23,6 +23,12 @@ mod graphicsdriver;
 use graphicsdriver::{PIXELS, SIGNAL};
 mod drawer;
 
+use core::cell::RefCell;
+use embassy_sync::blocking_mutex::{Mutex as BlockingMutex, raw::CriticalSectionRawMutex};
+
+static DISPLAY: BlockingMutex<CriticalSectionRawMutex, RefCell<drawer::MyDrawTarget>> =
+    BlockingMutex::new(RefCell::new(drawer::MyDrawTarget::new()));
+
 mod coap;
 mod lavalamp;
 mod scrolltext;

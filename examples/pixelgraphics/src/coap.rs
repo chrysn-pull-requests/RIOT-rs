@@ -4,8 +4,7 @@ use ariel_os::{
 };
 
 use super::drawer::MyDrawTarget;
-use core::cell::RefCell;
-use embassy_sync::blocking_mutex::{Mutex as BlockingMutex, raw::CriticalSectionRawMutex};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use embedded_graphics::{
     Pixel,
@@ -13,9 +12,6 @@ use embedded_graphics::{
     pixelcolor::{Rgb888, RgbColor as _},
     prelude::Point,
 };
-
-static DISPLAY: BlockingMutex<CriticalSectionRawMutex, RefCell<MyDrawTarget>> =
-    BlockingMutex::new(RefCell::new(MyDrawTarget::new()));
 
 static TEXT: Signal<CriticalSectionRawMutex, Option<heapless::String<128>>> = Signal::new();
 
@@ -32,7 +28,7 @@ pub(crate) async fn main() {
 
     info!("color picker thread started");
 
-    DISPLAY.lock(|display| {
+    super::DISPLAY.lock(|display| {
         let mut display = display.borrow_mut();
         display.draw_iter(
             itertools::iproduct!(0..i32::from(super::N_COLUMNS), 0..i32::from(super::N_ROWS)).map(
@@ -116,7 +112,7 @@ impl<C> minicbor::Encode<C> for CurrentFrameBuffer {
         e: &mut minicbor::Encoder<W>,
         ctx: &mut C,
     ) -> Result<(), minicbor::encode::Error<W::Error>> {
-        DISPLAY.lock(|display| {
+        super::DISPLAY.lock(|display| {
             let mut display = display.borrow_mut();
             // Let's hope it'll see throught that we don't really need to allocate but just memcpy
             // into the target.
@@ -146,7 +142,7 @@ impl<'de, C> minicbor::Decode<'de, C> for CurrentFrameBuffer {
         // Should we use bytes_iter to support indefinite length?
         let buffer = d.bytes()?;
 
-        DISPLAY.lock(|display| {
+        super::DISPLAY.lock(|display| {
             let mut display = display.borrow_mut();
             // Let's hope it'll see throught that we don't really need to allocate but just memcpy
             // out of the buffer
