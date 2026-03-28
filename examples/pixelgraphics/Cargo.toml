@@ -15,12 +15,6 @@ embassy-time = { workspace = true }
 embassy-sync = { workspace = true }
 smart-leds = "0.4.0"
 smart-leds-trait = "0.3.1"
-esp-hal.workspace = true
-#esp-hal-smartled = { version = "0.17.0", features = ["esp32", "defmt"] }
-esp-hal-smartled = { git = "https://github.com/kaspar030/esp-hal-community", branch = "fix-smartled-with-esp_hal-1.0.0", features = [
-  "defmt",
-  # … and any of esp32 or esp32s3 or future others will be enabled by smartled-config through the local laze.yml.
-] }
 embassy-executor = { workspace = true, default-features = false }
 embedded-graphics-core = "0.4.0"
 embedded-graphics = "0.8.1"
@@ -37,3 +31,14 @@ critical-section.workspace = true
 
 # Needed for the S3 Matrix; workaround for <https://github.com/ariel-os/ariel-os/issues/1949>
 embassy-time-queue-utils = { version = "*", features = ["_generic-queue"] }
+
+# Those two create implicit features to be selected by laze, and at least
+# esp-hal is checked for as a cfg(feature=). At this evolves, those will need
+# to become more explicit, but maybe that only happens when the workhorse parts
+# of this example become Ariel OS builtins.
+esp-hal = { workspace = true, optional = true }
+#esp-hal-smartled = { version = "0.17.0", features = ["esp32", "defmt"] }
+esp-hal-smartled = { git = "https://github.com/kaspar030/esp-hal-community", branch = "fix-smartled-with-esp_hal-1.0.0", optional = true, features = [
+  "defmt",
+  # … and any of esp32 or esp32s3 or future others will be enabled by smartled-config through the local laze.yml.
+] }

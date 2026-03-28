@@ -7,10 +7,10 @@ use ariel_os::hal::peripherals;
 
 use embassy_sync::blocking_mutex::{Mutex as BlockingMutex, raw::CriticalSectionRawMutex};
 use embassy_sync::signal::Signal;
-use esp_hal::time::Rate;
 
 use critical_section;
 
+#[cfg(feature = "esp-hal")]
 ariel_os::hal::define_peripherals!(PixelPeripherals {
     #[cfg(context = "waveshare-esp32-s3-matrix")]
     matrix: GPIO14,
@@ -24,8 +24,11 @@ pub(crate) static SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 pub(crate) static PIXELS: BlockingMutex<CriticalSectionRawMutex, Cell<[RGB8; super::N_LEDS]>> =
     BlockingMutex::new(Cell::new([RGB8::new(0, 0, 0); super::N_LEDS]));
 
+#[cfg(feature = "esp-hal")]
 #[ariel_os::task(autostart, peripherals)]
 async fn matrix_refresh_blocking_the_executor(peripherals: PixelPeripherals) {
+    use esp_hal::time::Rate;
+
     info!("matrix refresh started");
 
     use esp_hal::rmt::Rmt;

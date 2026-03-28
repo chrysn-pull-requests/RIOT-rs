@@ -3,6 +3,7 @@ apps:
     context:
       - ulanzi-tc001
       - waveshare-esp32-s3-matrix
+      - native
     # env:
     #   global:
     #     RUSTFLAGS:
@@ -26,6 +27,7 @@ modules:
     env:
       global:
         FEATURES:
+          - esp-hal
           - esp-hal-smartled/esp32
   - name: smartled-esp32s3
     provides_unique: [smartled-config]
@@ -34,4 +36,14 @@ modules:
     env:
       global:
         FEATURES:
+          - esp-hal
           - esp-hal-smartled/esp32s3
+  - name: smartled-native
+    help: |
+      Has no LED output at all, but is helpful for developing a CoAP peer.
+
+      Practically, this works well enough without actual LEDs:
+      a (separate) CoAP client can just poll the framebuffer and show that from a separate process.
+    provides_unique: [smartled-config]
+    context:
+      - native

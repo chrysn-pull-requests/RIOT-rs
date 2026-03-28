@@ -68,7 +68,9 @@ impl MyDrawTarget {
 }
 
 /// Plain line-wise arrangement, LTR.
-#[cfg(context = "waveshare-esp32-s3-matrix")]
+// We could really have any pattern for native, we just need to have some bijective pattern so we
+// can look up what we put there on native.
+#[cfg(any(context = "waveshare-esp32-s3-matrix", context = "native"))]
 impl MyDrawTarget {
     fn coord_to_index(coord: Point) -> Option<usize> {
         let (x, y) = point_to_usizes(coord)?;
