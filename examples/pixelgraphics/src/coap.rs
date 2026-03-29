@@ -16,17 +16,9 @@ use embedded_graphics::{
 static TEXT: Signal<CriticalSectionRawMutex, Option<heapless::String<128>>> = Signal::new();
 
 pub(crate) async fn main() {
-    info!("Waiting for network to come up wihout disturbance by LEDs");
-
-    Timer::after(Duration::from_secs(10)).await;
-
     ariel_os::asynch::spawner()
         .spawn(run_text_if_any())
         .unwrap();
-
-    Timer::after(Duration::from_secs(10)).await;
-
-    info!("color picker thread started");
 
     super::DISPLAY.lock(|display| {
         let mut display = display.borrow_mut();
