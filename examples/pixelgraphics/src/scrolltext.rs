@@ -26,37 +26,37 @@ pub(crate) async fn main(text: &str) -> ! {
     let text_style = MonoTextStyle::new(&FONT_5X8, ariel_offwhite);
 
     loop {
-        super::DISPLAY.lock(|display| {
-            let mut display = display.borrow_mut();
+        for count in 0i32..(text.len() as i32 * 5 + 32) {
+            super::DISPLAY.lock(|display| {
+                let mut display = display.borrow_mut();
+                let display = &mut *display;
 
-            for count in 0i32..(text.len() as i32 * 5 + 32) {
                 display.clear(Rgb888::BLACK).unwrap();
                 display.flush();
 
                 Rectangle::new(Point::new(0, 0), Size::new(32, 8))
                     .into_styled(stroke)
-                    .draw(&mut *display)
+                    .draw(display)
                     .unwrap();
 
                 Text::new(text, Point::new(32 - (count), 6), text_style)
-                    .draw(&mut *display)
+                    .draw(display)
                     .unwrap();
 
                 // We want descenders to show ("y") but not general text escaping to the sides
 
-                Line::new(Point::new(0, 0), Point::new(0, 8))
+                Line::new(Point::new(0, 0), Point::new(0, 7))
                     .into_styled(stroke)
-                    .draw(&mut *display)
+                    .draw(display)
                     .unwrap();
-                Line::new(Point::new(31, 0), Point::new(31, 8))
+                Line::new(Point::new(31, 0), Point::new(31, 7))
                     .into_styled(stroke)
-                    .draw(&mut *display)
+                    .draw(display)
                     .unwrap();
 
                 display.flush();
-            }
-        });
-
-        Timer::after(Duration::from_millis(128)).await;
+            });
+            Timer::after(Duration::from_millis(128)).await;
+        }
     }
 }
