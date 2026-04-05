@@ -59,6 +59,7 @@ mod demo_setup {
             ["/.well-known/core", 1],
             ["/poem", 1],
             ["/fb", 0xff],
+            ["/ll", 0xff],
             ["/text", 0xff]
     ]);
     /// Credential by which the administrator of any demo device is recognized.

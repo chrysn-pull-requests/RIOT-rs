@@ -7,7 +7,7 @@ use smart_leds::{
     hsv::{Hsv, hsv2rgb},
 };
 
-pub(crate) async fn lavalamp() {
+pub(crate) async fn lavalamp() -> ! {
     println!("lavalamp task started");
     const NODE: Node = Node::new();
     let mut nodes = [NODE; super::N_LEDS as _];

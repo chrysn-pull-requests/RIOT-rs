@@ -17,9 +17,9 @@ match sys.argv[2]:
 
         encoded = cbor2.CBORTag(40, [[rows, columns, 3], cbor2.CBORTag(64, bytes(int(4 * channel) for pixel in pixels for channel in pixel))])
         encoded = cbor2.dumps(encoded)
-    case "stop":
-        path = "text"
-        method = aiocoap.DELETE
+    case "lava":
+        path = "ll"
+        method = aiocoap.POST
         encoded = b""
     case text:
         path = "text"

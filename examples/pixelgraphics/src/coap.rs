@@ -13,7 +13,16 @@ use embedded_graphics::{
     prelude::Point,
 };
 
-static TEXT: Signal<CriticalSectionRawMutex, Option<heapless::String<128>>> = Signal::new();
+enum Mode {
+    /// Show a scrolling text
+    Text(heapless::String<128>),
+    /// Show the lava lamp animation
+    LavaLamp,
+    /// Don't paint anything: Something gets painted when this is set, and that's it.
+    StaticFramebuffer,
+}
+
+static MODE: Signal<CriticalSectionRawMutex, Mode> = Signal::new();
 
 pub(crate) async fn main() {
     ariel_os::asynch::spawner()
@@ -39,10 +48,15 @@ pub(crate) async fn main() {
 #[ariel_os::task(autostart)]
 async fn running_coap() {
     use coap_handler_implementations::{
-        HandlerBuilder, TypeHandler, new_dispatcher, with_get_put, with_put_delete,
+        HandlerBuilder, TypeHandler, new_dispatcher, with_get_put, with_post, with_put,
     };
 
     let handler = new_dispatcher()
+        .at_with_attributes(
+            &["ll"],
+            &[],
+            TypeHandler::new_minicbor_2(with_post(LavaLamp)),
+        )
         .at_with_attributes(
             &["fb"],
             &[],
@@ -51,7 +65,7 @@ async fn running_coap() {
         .at_with_attributes(
             &["text"],
             &[],
-            TypeHandler::new_minicbor_2(with_put_delete(GlobalText)),
+            TypeHandler::new_minicbor_2(with_put(GlobalText)),
         );
 
     ariel_os::coap::coap_run(handler).await;
@@ -94,6 +108,21 @@ struct CborFrameBuffer {
     data: CurrentFrameBuffer,
 }
 
+struct LavaLamp;
+
+impl coap_handler_implementations::PostRenderable for LavaLamp {
+    type PostIn = coap_handler_implementations::Empty;
+    type PostOut = coap_handler_implementations::Empty;
+
+    fn post(
+        &mut self,
+        representation: &Self::PostIn,
+    ) -> Result<Self::PostOut, coap_message_utils::Error> {
+        MODE.signal(Mode::LavaLamp);
+        Ok(coap_handler_implementations::Empty)
+    }
+}
+
 /// An abomination of an encodable/decodable: This acts right on the frame buffer, rather than just
 /// parsing and leaving it to the recipient to act on it.
 struct CurrentFrameBuffer;
@@ -129,7 +158,7 @@ impl<'de, C> minicbor::Decode<'de, C> for CurrentFrameBuffer {
         d: &mut minicbor::Decoder<'de>,
         _ctx: &mut C,
     ) -> Result<Self, minicbor::decode::Error> {
-        TEXT.signal(None);
+        MODE.signal(Mode::StaticFramebuffer);
 
         // Should we use bytes_iter to support indefinite length?
         let buffer = d.bytes()?;
@@ -162,14 +191,7 @@ impl coap_handler_implementations::PutRenderable for GlobalText {
     type Put = PuttableText;
 
     fn put(&mut self, representation: &Self::Put) -> Result<(), coap_message_utils::Error> {
-        TEXT.signal(Some(representation.0.clone()));
-        Ok(())
-    }
-}
-
-impl coap_handler_implementations::DeleteRenderable for GlobalText {
-    fn delete(&mut self) -> Result<(), coap_message_utils::Error> {
-        TEXT.signal(None);
+        MODE.signal(Mode::Text(representation.0.clone()));
         Ok(())
     }
 }
@@ -178,17 +200,19 @@ impl coap_handler_implementations::DeleteRenderable for GlobalText {
 async fn run_text_if_any() {
     use embassy_futures::select::{Either, select};
 
-    let mut text = TEXT.wait().await;
+    let mut mode = MODE.wait().await;
     loop {
-        match text {
-            Some(t) => {
-                let Either::Second(new_text) =
-                    select(crate::scrolltext::main(&t), TEXT.wait()).await;
-                text = new_text;
-            }
-            None => {
-                text = TEXT.wait().await;
-            }
-        }
+        let Either::Second(new_mode) = select(
+            async {
+                match mode {
+                    Mode::Text(t) => crate::scrolltext::main(&t).await,
+                    Mode::LavaLamp => crate::lavalamp::lavalamp().await,
+                    Mode::StaticFramebuffer => core::future::pending().await,
+                }
+            },
+            MODE.wait(),
+        )
+        .await;
+        mode = new_mode;
     }
 }
