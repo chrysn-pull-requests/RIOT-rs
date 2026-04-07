@@ -13,11 +13,14 @@ use embedded_graphics::{
     prelude::Point,
 };
 
+#[derive(Clone)]
 enum Mode {
     /// Show a scrolling text
     Text(heapless::String<128>),
     /// Show the lava lamp animation
     LavaLamp,
+    /// Show the Game of Life simulation
+    Life,
     /// Don't paint anything: Something gets painted when this is set, and that's it.
     StaticFramebuffer,
 }
@@ -43,6 +46,9 @@ pub(crate) async fn main() {
         );
         display.flush();
     });
+
+    Timer::after(Duration::from_secs(3)).await;
+    MODE.signal(Mode::Life);
 }
 
 #[ariel_os::task(autostart)]
@@ -55,7 +61,12 @@ async fn running_coap() {
         .at_with_attributes(
             &["ll"],
             &[],
-            TypeHandler::new_minicbor_2(with_post(LavaLamp)),
+            TypeHandler::new_minicbor_2(with_post(PostToSetMode(Mode::LavaLamp))),
+        )
+        .at_with_attributes(
+            &["li"],
+            &[],
+            TypeHandler::new_minicbor_2(with_post(PostToSetMode(Mode::Life))),
         )
         .at_with_attributes(
             &["fb"],
@@ -108,9 +119,9 @@ struct CborFrameBuffer {
     data: CurrentFrameBuffer,
 }
 
-struct LavaLamp;
+struct PostToSetMode(Mode);
 
-impl coap_handler_implementations::PostRenderable for LavaLamp {
+impl coap_handler_implementations::PostRenderable for PostToSetMode {
     type PostIn = coap_handler_implementations::Empty;
     type PostOut = coap_handler_implementations::Empty;
 
@@ -118,7 +129,7 @@ impl coap_handler_implementations::PostRenderable for LavaLamp {
         &mut self,
         representation: &Self::PostIn,
     ) -> Result<Self::PostOut, coap_message_utils::Error> {
-        MODE.signal(Mode::LavaLamp);
+        MODE.signal(self.0.clone());
         Ok(coap_handler_implementations::Empty)
     }
 }
@@ -207,6 +218,7 @@ async fn run_text_if_any() {
                 match mode {
                     Mode::Text(t) => crate::scrolltext::main(&t).await,
                     Mode::LavaLamp => crate::lavalamp::lavalamp().await,
+                    Mode::Life => crate::life::main().await,
                     Mode::StaticFramebuffer => core::future::pending().await,
                 }
             },

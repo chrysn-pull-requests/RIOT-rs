@@ -31,6 +31,7 @@ static DISPLAY: BlockingMutex<CriticalSectionRawMutex, RefCell<drawer::MyDrawTar
 
 mod coap;
 mod lavalamp;
+mod life;
 mod scrolltext;
 
 #[ariel_os::task(autostart)]

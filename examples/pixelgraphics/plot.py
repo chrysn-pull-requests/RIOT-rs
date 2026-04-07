@@ -21,6 +21,10 @@ match sys.argv[2]:
         path = "ll"
         method = aiocoap.POST
         encoded = b""
+    case "life":
+        path = "li"
+        method = aiocoap.POST
+        encoded = b""
     case text:
         path = "text"
         method = aiocoap.PUT
