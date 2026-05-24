@@ -288,7 +288,7 @@ pub(super) fn user_net_device(
 ) -> embassy_net_driver_channel::Device<'static, 1500> {
     use embassy_net_driver_channel::{State, new};
     use static_cell::StaticCell;
-    static STATE: StaticCell<State<1500, 1, 1>> = StaticCell::new();
+    static STATE: StaticCell<State<1500, 10, 10>> = StaticCell::new();
     let state = STATE.init_with(State::new);
 
     let (runner, device) = new(state, embassy_net_driver::HardwareAddress::Ip);
